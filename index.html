@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bob's Booth</title>
+<meta name="description" content="Brewers World Series radio called by Bob, an AI play-by-play announcer, with a tribute to Bob Uecker.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Big+Shoulders+Display:wght@600;800;900&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* Plan: a night ballpark poster up top; the booth below, where a cartoon Bob talks in time with the audio;
+   then the green manual scoreboard, ticket-stub games, and a souvenir program. One look, committed: night game. */
+:root{
+  --night:#0a1630; --night-2:#132851; --night-3:#1c3768;
+  --gold:#f2c14e; --gold-deep:#b07a22; --gold-pale:#ffe6a1;
+  --cream:#f4e4bf; --paper:#ecd7a6; --sepia:#3b2715; --walnut:#6b3a1c; --walnut-2:#8a4f27;
+  --board:#1d4631; --board-2:#163a28; --chalk:#f6f1e1;
+  --red:#d2412f; --mute:#b9c4dd;
+  --display:"Limelight","Didot","Bodoni 72",Georgia,serif;
+  --block:"Big Shoulders Display","Oswald","Arial Narrow",Impact,sans-serif;
+  --body:"Atkinson Hyperlegible",Verdana,"Segoe UI",system-ui,sans-serif;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .23 0 0 0 0 .15 0 0 0 0 .08 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{font-size:20px;overflow-x:clip}
+body{margin:0;background:var(--night);color:var(--cream);font:1rem/1.6 var(--body);overflow-x:clip}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1100px;margin:0 auto}
+:focus-visible{outline:4px solid var(--gold-pale);outline-offset:4px;border-radius:8px}
+h2{font:400 clamp(1.9rem,4.6vw,2.6rem)/1.1 var(--display);color:var(--gold);margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--mute);margin:0 0 22px;max-width:60ch}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- poster hero ---------- */
+.poster{position:relative;isolation:isolate;min-height:clamp(340px,52vw,520px);display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 100%,#3a4f86 0%,#1a2f5e 38%,var(--night) 75%)}
+.poster::before{content:"";position:absolute;inset:-40% -20% 0;z-index:-2;
+  background:repeating-conic-gradient(from 0deg at 50% 100%,rgba(242,193,78,.10) 0 4deg,transparent 4deg 10deg);
+  -webkit-mask:radial-gradient(75% 90% at 50% 100%,#000 30%,transparent 72%);mask:radial-gradient(75% 90% at 50% 100%,#000 30%,transparent 72%)}
+.poster svg.park{position:absolute;inset:auto 0 0;width:100%;height:100%;z-index:-1}
+.marquee{position:relative;padding:14px;border-radius:26px;margin-block:20px 80px;
+  background:radial-gradient(circle,var(--gold-pale) 0 3.5px,transparent 4.5px) 0 0/24px 24px,linear-gradient(var(--gold-deep),var(--gold-deep));
+  box-shadow:0 0 0 3px var(--gold),0 0 40px rgba(242,193,78,.35),0 20px 50px rgba(0,0,0,.5)}
+.marquee .face{background:linear-gradient(180deg,#10224a,#0a1630);border-radius:16px;padding:18px clamp(20px,5vw,56px) 16px;text-align:center;box-shadow:inset 0 0 0 2px var(--gold-deep)}
+.marquee h1{margin:0;font:400 clamp(2.7rem,10vw,5.6rem)/1 var(--display);letter-spacing:.02em;
+  background:linear-gradient(180deg,#fff3c7 0%,var(--gold) 45%,var(--gold-deep) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 #3a2410)}
+.marquee p{margin:6px 0 0;font:800 clamp(.95rem,2.4vw,1.25rem)/1.2 var(--block);letter-spacing:.12em;color:var(--gold-pale)}
+@keyframes bulbs{50%{background-position:12px 12px,0 0}}
+.marquee{animation:bulbs 1.6s steps(1) infinite}
+
+/* ---------- the booth ---------- */
+.booth{position:relative;margin-top:-64px;z-index:2}
+.booth-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0;border-radius:28px;overflow:hidden;
+  box-shadow:0 0 0 4px var(--gold-deep),0 0 0 7px var(--walnut),0 30px 60px rgba(0,0,0,.55)}
+.scene{background:#7a4220;position:relative;min-width:0;display:flex;align-items:flex-end}
+.scene svg{display:block;width:100%;height:auto}
+.console{background:var(--grain),linear-gradient(180deg,#f6e8c6,var(--paper));color:var(--sepia);padding:26px clamp(18px,3vw,34px);display:grid;gap:18px;align-content:start;min-width:0}
+.signal{display:flex;align-items:center;gap:16px}
+.meter{width:150px;flex:none}
+.onair-sign{font:900 1.15rem/1 var(--block);letter-spacing:.16em;padding:10px 14px;border-radius:8px;background:#3a2a1d;color:#7d6a58;border:3px solid #2a1c11}
+.on .onair-sign{background:var(--red);color:#fff6e6;box-shadow:0 0 22px rgba(210,65,47,.7);border-color:#8f2417}
+.now-label{font:800 1rem/1.3 var(--block);letter-spacing:.06em;color:var(--walnut)}
+.caption{background:#fffaf0;border-radius:14px;padding:18px 20px;font-size:clamp(1.2rem,2.3vw,1.5rem);line-height:1.5;min-height:8.2em;
+  box-shadow:inset 0 0 0 2px #d6bf8c,0 2px 0 #c9ad72;color:#22170c}
+.caption small{display:block;font-size:.9rem;color:#6b5236;margin-top:10px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+button{font:800 1.15rem/1.15 var(--block);letter-spacing:.06em;cursor:pointer;border-radius:999px;min-height:60px;padding:10px 26px;
+  border:3px solid var(--sepia);background:#fffaf0;color:var(--sepia);transition:transform .1s,background .15s}
+button:hover{background:#fff1cf}
+button:active{transform:translateY(2px)}
+button.brass{font-size:1.5rem;min-height:76px;padding:12px 38px;border:none;color:#2a1a08;
+  background:linear-gradient(180deg,#ffe9a8,var(--gold) 45%,#c48b2c);box-shadow:0 5px 0 #7c521a,0 10px 18px rgba(59,39,21,.35),inset 0 2px 0 #fff5d1}
+button.brass:active{transform:translateY(4px);box-shadow:0 1px 0 #7c521a,inset 0 2px 0 #fff5d1}
+button[disabled]{opacity:.45;cursor:not-allowed}
+.vol{font:800 1.05rem var(--block);letter-spacing:.06em}
+.vol button{min-height:54px;padding:8px 20px;font-size:1.05rem}
+.vol output{min-width:3.2em;text-align:center;font:900 1.4rem var(--block)}
+.status{margin:0;font-size:.95rem;color:#5b4632}
+.status strong{color:#22170c}
+
+/* cartoon motion */
+#mouth{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(.12)}
+#eyes{transform-box:fill-box;transform-origin:50% 50%;animation:blink 5s infinite}
+@keyframes blink{0%,95%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.talking #mouth{animation:flap .26s ease-in-out infinite alternate}
+@keyframes flap{from{transform:scaleY(.2)}to{transform:scaleY(.95)}}
+#steam path{animation:steam 3s ease-in-out infinite}
+#steam path:nth-child(2){animation-delay:1.2s}
+@keyframes steam{0%{opacity:0;transform:translateY(6px)}40%{opacity:.7}100%{opacity:0;transform:translateY(-10px)}}
+#needle{transform-box:view-box;transform-origin:100px 96px;transform:rotate(-55deg);transition:transform .08s linear}
+#tally{fill:#4a3424}
+.on #tally{fill:var(--red)}
+#beams{opacity:.55}
+
+/* ---------- scoreboard ---------- */
+.section{padding-block:56px 10px}
+.board-frame{background:var(--grain),linear-gradient(180deg,var(--board),var(--board-2));border-radius:18px;padding:22px clamp(14px,3vw,28px) 24px;
+  box-shadow:0 0 0 6px #0f2a1c,0 0 0 9px var(--gold-deep),0 24px 50px rgba(0,0,0,.5)}
+.board-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}
+.board-top h2{color:var(--chalk);margin:0;font-size:clamp(1.6rem,4vw,2.2rem)}
+.inning-tag{font:900 1.4rem var(--block);letter-spacing:.08em;color:var(--gold-pale)}
+.sbwrap{overflow-x:auto;padding-bottom:4px}
+table.sb{border-collapse:separate;border-spacing:6px;font-family:var(--block);color:var(--chalk);min-width:100%}
+.sb th,.sb td{text-align:center;font-weight:900}
+.sb thead th{font-size:1.1rem;color:#cfe3d4;letter-spacing:.06em;padding:0 2px}
+.sb tbody th{font-size:1.6rem;text-align:left;padding-right:10px;letter-spacing:.06em;white-space:nowrap}
+.sb td{background:#0f2b1d;border-radius:6px;min-width:46px;height:58px;font-size:2rem;box-shadow:inset 0 3px 0 rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.06)}
+.sb td.now{box-shadow:inset 0 0 0 3px var(--gold),inset 0 3px 0 rgba(0,0,0,.35)}
+.sb td.tot{background:#0b2116;color:var(--gold-pale);min-width:58px}
+.sb th.tot{color:var(--gold-pale)}
+.field{display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center;margin-top:18px}
+.diamond{width:120px;height:auto}
+.diamond .base{fill:#0f2b1d;stroke:#cfe3d4;stroke-width:3}
+.diamond .base.on{fill:var(--gold);stroke:var(--gold-pale)}
+.who{display:grid;gap:6px;font-size:1.05rem}
+.who b{font:800 1rem var(--block);letter-spacing:.1em;color:#cfe3d4;margin-right:8px}
+.outs{display:flex;gap:10px;align-items:center}
+.outs i{width:22px;height:22px;border-radius:50%;background:#0f2b1d;box-shadow:inset 0 2px 0 rgba(0,0,0,.4)}
+.outs i.on{background:#ff6b4f;box-shadow:0 0 12px #ff6b4f}
+.board-empty{color:#cfe3d4;margin:6px 0 0}
+
+/* ---------- tickets ---------- */
+.tickets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px}
+.ticket{position:relative;display:grid;grid-template-columns:86px minmax(0,1fr);color:var(--sepia);border-radius:12px;min-width:0;
+  background:var(--grain),linear-gradient(90deg,var(--gold) 0 86px,var(--cream) 86px);
+  -webkit-mask:radial-gradient(circle at 86px 0,transparent 11px,#000 12px) top/100% 51% no-repeat,radial-gradient(circle at 86px 100%,transparent 11px,#000 12px) bottom/100% 51% no-repeat;
+          mask:radial-gradient(circle at 86px 0,transparent 11px,#000 12px) top/100% 51% no-repeat,radial-gradient(circle at 86px 100%,transparent 11px,#000 12px) bottom/100% 51% no-repeat}
+.ticket .stub{display:grid;place-content:center;text-align:center;border-right:3px dashed rgba(59,39,21,.45);padding:14px 6px}
+.ticket .stub span{font:800 .85rem var(--block);letter-spacing:.14em}
+.ticket .stub strong{font:400 3rem/1 var(--display);color:#2a1a08}
+.ticket .tbody{padding:16px 18px 18px;display:grid;gap:6px;min-width:0}
+.ticket .match{font:800 1.3rem/1.15 var(--block);letter-spacing:.03em;margin:0;padding-right:70px}
+.ticket .when{margin:0;font-size:1rem;color:#5b4632}
+.ticket button{width:100%;margin-top:6px;min-height:56px;font-size:1.1rem}
+.ticket.tuned{box-shadow:none}
+.ticket.tuned .tbody{background:rgba(242,193,78,.28)}
+.stamp{position:absolute;right:12px;top:10px;transform:rotate(8deg);font:900 .95rem var(--block);letter-spacing:.14em;color:var(--red);
+  border:3px solid var(--red);border-radius:6px;padding:2px 8px;opacity:.85}
+.stamp.live{background:var(--red);color:#fff;opacity:1}
+
+/* ---------- program ---------- */
+.program{background:var(--grain),linear-gradient(180deg,#f3e2b9,var(--paper));color:var(--sepia);border-radius:22px;padding:clamp(22px,4vw,46px);
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:clamp(24px,4vw,56px);position:relative;
+  box-shadow:inset 0 0 0 3px var(--gold-deep),inset 0 0 0 9px #f3e2b9,inset 0 0 0 11px var(--gold-deep),0 24px 50px rgba(0,0,0,.45)}
+.program h2{color:var(--walnut)}
+.program p{max-width:60ch;margin:0 0 14px}
+.program .art{width:100%;max-width:340px;height:auto;display:block;margin:4px 0 16px}
+.years{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:0}
+.years li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:14px;padding:12px 0;border-top:2px dotted rgba(107,58,28,.45)}
+.years .y{font:400 1.45rem/1.2 var(--display);color:var(--walnut)}
+.coda{font-style:italic;margin-top:14px}
+.fine{color:var(--mute);font-size:.9rem;padding-block:40px 50px}
+.fine p{max-width:76ch;margin:0 0 10px}
+
+@media (max-width:860px){
+  .booth-grid{grid-template-columns:1fr}
+  .scene svg{max-width:460px;margin:0 auto}
+  .program{grid-template-columns:1fr}
+  .marquee{margin-bottom:70px}
+}
+@media (max-width:480px){
+  .meter{width:110px}
+  .sb td{min-width:38px;height:50px;font-size:1.6rem}
+  .ticket{grid-template-columns:70px minmax(0,1fr);background:var(--grain),linear-gradient(90deg,var(--gold) 0 70px,var(--cream) 70px);
+    -webkit-mask:radial-gradient(circle at 70px 0,transparent 11px,#000 12px) top/100% 51% no-repeat,radial-gradient(circle at 70px 100%,transparent 11px,#000 12px) bottom/100% 51% no-repeat;
+            mask:radial-gradient(circle at 70px 0,transparent 11px,#000 12px) top/100% 51% no-repeat,radial-gradient(circle at 70px 100%,transparent 11px,#000 12px) bottom/100% 51% no-repeat}
+}
+@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="poster">
+  <!-- Original night-game skyline: light towers, beams, and an arched grandstand -->
+  <svg class="park" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <pattern id="stars" width="180" height="120" patternUnits="userSpaceOnUse">
+        <circle cx="20" cy="18" r="1.4" fill="#fff" opacity=".8"/><circle cx="95" cy="40" r="1" fill="#fff" opacity=".6"/>
+        <circle cx="150" cy="12" r="1.6" fill="#ffe6a1" opacity=".8"/><circle cx="60" cy="85" r="1" fill="#fff" opacity=".5"/>
+        <circle cx="130" cy="95" r="1.2" fill="#fff" opacity=".7"/>
+      </pattern>
+      <pattern id="arches" width="56" height="70" patternUnits="userSpaceOnUse">
+        <path d="M12 70 V30 A16 16 0 0 1 44 30 V70 Z" fill="#f2c14e" opacity=".55"/>
+      </pattern>
+      <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c4" stop-opacity=".55"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></linearGradient>
+      <radialGradient id="lamp"><stop offset="0" stop-color="#fffbe8"/><stop offset=".4" stop-color="#ffe6a1" stop-opacity=".8"/><stop offset="1" stop-color="#ffe6a1" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1200" height="330" fill="url(#stars)"/>
+    <g id="beams">
+      <polygon points="150,150 250,150 640,470 420,470" fill="url(#beam)"/>
+      <polygon points="950,150 1050,150 780,470 560,470" fill="url(#beam)"/>
+    </g>
+    <!-- light towers -->
+    <g fill="#081127">
+      <rect x="192" y="160" width="14" height="300"/><rect x="994" y="160" width="14" height="300"/>
+      <rect x="140" y="110" width="118" height="58" rx="4"/><rect x="942" y="110" width="118" height="58" rx="4"/>
+    </g>
+    <g fill="url(#lamp)">
+      <circle cx="160" cy="125" r="22"/><circle cx="199" cy="125" r="22"/><circle cx="238" cy="125" r="22"/>
+      <circle cx="160" cy="153" r="22"/><circle cx="199" cy="153" r="22"/><circle cx="238" cy="153" r="22"/>
+      <circle cx="962" cy="125" r="22"/><circle cx="1001" cy="125" r="22"/><circle cx="1040" cy="125" r="22"/>
+      <circle cx="962" cy="153" r="22"/><circle cx="1001" cy="153" r="22"/><circle cx="1040" cy="153" r="22"/>
+    </g>
+    <!-- grandstand with deco steps and pennants -->
+    <path d="M0 520 V400 H120 V372 H220 V350 H340 V334 H470 V322 H730 V334 H860 V350 H980 V372 H1080 V400 H1200 V520 Z" fill="#0b1733"/>
+    <rect x="0" y="420" width="1200" height="64" fill="url(#arches)"/>
+    <path d="M0 484 H1200 V520 H0 Z" fill="#070f22"/>
+    <g stroke="#0b1733" stroke-width="3">
+      <path d="M470 322 V286"/><path d="M600 322 V276"/><path d="M730 322 V286"/>
+    </g>
+    <path d="M470 286 L506 294 L470 302 Z" fill="#f2c14e"/><path d="M600 276 L640 285 L600 294 Z" fill="#d2412f"/><path d="M730 286 L766 294 L730 302 Z" fill="#f2c14e"/>
+  </svg>
+  <div class="marquee"><div class="face">
+    <h1>Bob's Booth</h1>
+    <p>Brewers World Series radio</p>
+  </div></div>
+</header>
+
+<main>
+  <section class="booth gutter" aria-label="Bob's radio booth">
+    <div class="wrap booth-grid" id="stage">
+      <div class="scene" aria-hidden="true">
+        <!-- Original cartoon: Bob at the microphone, a 1930s rubber-hose homage, with the ballpark through the window -->
+        <svg viewBox="0 0 440 400">
+          <defs>
+            <linearGradient id="nightwin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1d40"/><stop offset=".6" stop-color="#25407a"/><stop offset="1" stop-color="#3c5d93"/></linearGradient>
+            <linearGradient id="desk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a5a2c"/><stop offset="1" stop-color="#5c3016"/></linearGradient>
+            <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7d8794"/><stop offset=".45" stop-color="#f1f4f7"/><stop offset="1" stop-color="#6b7480"/></linearGradient>
+            <clipPath id="win"><path d="M70 250 V120 Q70 30 220 30 Q370 30 370 120 V250 Z"/></clipPath>
+          </defs>
+          <!-- wall panels -->
+          <rect width="440" height="400" fill="#7a4220"/>
+          <g stroke="#5e3116" stroke-width="2" opacity=".6"><path d="M40 0 V400"/><path d="M400 0 V400"/></g>
+          <!-- window to the field -->
+          <g clip-path="url(#win)">
+            <rect x="60" y="20" width="320" height="240" fill="url(#nightwin)"/>
+            <circle cx="110" cy="70" r="26" fill="#ffe6a1" opacity=".35"/><circle cx="330" cy="70" r="26" fill="#ffe6a1" opacity=".35"/>
+            <circle cx="110" cy="70" r="7" fill="#fffbe8"/><circle cx="330" cy="70" r="7" fill="#fffbe8"/>
+            <path d="M60 150 Q220 118 380 150 V175 H60 Z" fill="#14254a"/>
+            <g fill="#f2c14e" opacity=".35"><circle cx="90" cy="150" r="2"/><circle cx="120" cy="146" r="2"/><circle cx="150" cy="143" r="2"/><circle cx="185" cy="141" r="2"/><circle cx="255" cy="141" r="2"/><circle cx="290" cy="143" r="2"/><circle cx="320" cy="146" r="2"/><circle cx="350" cy="150" r="2"/></g>
+            <path d="M60 172 Q220 158 380 172 V260 H60 Z" fill="#2f6b3f"/>
+            <path d="M220 168 L300 214 L220 258 L140 214 Z" fill="#b5784a"/>
+            <path d="M220 182 L276 214 L220 246 L164 214 Z" fill="#3a7b48"/>
+            <g fill="#fff"><rect x="216" y="164" width="8" height="8" transform="rotate(45 220 168)"/><rect x="296" y="210" width="8" height="8" transform="rotate(45 300 214)"/><rect x="136" y="210" width="8" height="8" transform="rotate(45 140 214)"/></g>
+          </g>
+          <path d="M70 250 V120 Q70 30 220 30 Q370 30 370 120 V250" fill="none" stroke="#e9b949" stroke-width="10"/>
+          <path d="M220 30 V100 M150 46 L200 100 M290 46 L240 100" stroke="#e9b949" stroke-width="4"/>
+          <path d="M70 160 H370" stroke="#e9b949" stroke-width="4"/>
+          <!-- on-air tally light -->
+          <rect x="182" y="6" width="76" height="22" rx="6" fill="#2a1a0e"/>
+          <rect id="tally" x="186" y="9" width="68" height="16" rx="4"/>
+          <text x="220" y="22" text-anchor="middle" font-family="Big Shoulders Display, Impact, sans-serif" font-weight="900" font-size="13" fill="#fff4e0" letter-spacing="2">ON AIR</text>
+
+          <!-- Bob -->
+          <g stroke="#2b1a0c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+            <!-- jacket and shirt -->
+            <path d="M118 400 C118 330 150 292 220 288 C290 292 322 330 322 400 Z" fill="#1c3768"/>
+            <path d="M196 290 L220 336 L244 290 Z" fill="#fffaf0"/>
+            <path d="M200 291 L180 330 L196 342 L214 312 Z" fill="#26467f"/><path d="M240 291 L260 330 L244 342 L226 312 Z" fill="#26467f"/>
+            <path d="M206 300 L220 308 L234 300 L234 314 L220 308 L206 314 Z" fill="#d2412f"/>
+            <path d="M270 334 L292 330 L290 342 L272 344 Z" fill="#f2c14e"/>
+            <!-- ears -->
+            <ellipse cx="154" cy="206" rx="15" ry="20" fill="#f0c49c"/><ellipse cx="286" cy="206" rx="15" ry="20" fill="#f0c49c"/>
+            <!-- head -->
+            <path d="M220 128 C278 128 292 170 290 210 C288 258 258 286 220 286 C182 286 152 258 150 210 C148 170 162 128 220 128 Z" fill="#f4caa3"/>
+            <!-- hair tufts -->
+            <path d="M158 186 C150 160 166 146 178 152 C170 162 172 176 166 190 Z" fill="#d9dce2"/>
+            <path d="M282 186 C290 160 274 146 262 152 C270 162 268 176 274 190 Z" fill="#d9dce2"/>
+            <path d="M206 132 C210 120 222 118 226 128" fill="none"/>
+          </g>
+          <ellipse cx="236" cy="150" rx="18" ry="7" fill="#fff" opacity=".45"/>
+          <!-- face -->
+          <g id="eyes">
+            <ellipse cx="198" cy="200" rx="12" ry="15" fill="#fff" stroke="#2b1a0c" stroke-width="3"/>
+            <ellipse cx="242" cy="200" rx="12" ry="15" fill="#fff" stroke="#2b1a0c" stroke-width="3"/>
+            <ellipse cx="201" cy="204" rx="5.5" ry="7.5" fill="#2b1a0c"/><ellipse cx="239" cy="204" rx="5.5" ry="7.5" fill="#2b1a0c"/>
+            <circle cx="203" cy="200" r="2" fill="#fff"/><circle cx="241" cy="200" r="2" fill="#fff"/>
+          </g>
+          <g stroke="#2b1a0c" stroke-width="3" stroke-linecap="round" fill="#cfd3da">
+            <path d="M180 180 C190 170 206 172 212 180 C204 178 192 178 180 184 Z"/>
+            <path d="M260 180 C250 170 234 172 228 180 C236 178 248 178 260 184 Z"/>
+          </g>
+          <ellipse cx="174" cy="232" rx="11" ry="7" fill="#f09a83" opacity=".55"/><ellipse cx="266" cy="232" rx="11" ry="7" fill="#f09a83" opacity=".55"/>
+          <!-- mouth (scales with Bob's voice) -->
+          <g id="mouth">
+            <path d="M200 246 Q220 248 240 246 Q238 272 220 274 Q202 272 200 246 Z" fill="#5a1a14" stroke="#2b1a0c" stroke-width="3"/>
+            <path d="M206 262 Q220 254 234 262 Q228 272 220 272 Q212 272 206 262 Z" fill="#e2675a"/>
+          </g>
+          <!-- mustache and nose sit over the mouth -->
+          <path d="M184 244 C192 230 210 230 220 238 C230 230 248 230 256 244 C246 250 232 248 220 244 C208 248 194 250 184 244 Z" fill="#d9dce2" stroke="#2b1a0c" stroke-width="3" stroke-linejoin="round"/>
+          <ellipse cx="220" cy="226" rx="14" ry="12" fill="#ee9f86" stroke="#2b1a0c" stroke-width="3"/>
+          <ellipse cx="215" cy="222" rx="4" ry="3" fill="#fff" opacity=".6"/>
+          <!-- headset -->
+          <g stroke="#2b1a0c" stroke-width="3.5">
+            <path d="M152 196 C150 120 290 120 288 196" fill="none" stroke="#2b1a0c" stroke-width="9"/>
+            <path d="M152 196 C150 120 290 120 288 196" fill="none" stroke="#56606c" stroke-width="4"/>
+            <rect x="136" y="186" width="26" height="40" rx="10" fill="#3a434e"/><rect x="278" y="186" width="26" height="40" rx="10" fill="#3a434e"/>
+            <path d="M146 222 C150 252 170 266 190 262" fill="none" stroke-width="4"/>
+            <circle cx="192" cy="262" r="6" fill="#3a434e"/>
+          </g>
+          <!-- desk -->
+          <rect x="0" y="330" width="440" height="70" fill="url(#desk)"/>
+          <rect x="0" y="326" width="440" height="8" fill="#e9b949"/>
+          <!-- gloved rubber-hose hands -->
+          <g stroke="#2b1a0c" stroke-width="3.5" fill="#fffaf0" stroke-linejoin="round">
+            <path d="M138 332 C134 314 156 306 170 312 C178 306 192 312 190 322 C196 324 196 334 188 336 L142 338 Z"/>
+            <path d="M302 332 C306 314 284 306 270 312 C262 306 248 312 250 322 C244 324 244 334 252 336 L298 338 Z"/>
+            <path d="M152 320 V330 M164 318 V330 M288 320 V330 M276 318 V330" fill="none" stroke-width="2.5"/>
+          </g>
+          <!-- deco ribbon microphone -->
+          <g>
+            <rect x="350" y="300" width="8" height="34" fill="#4b525b"/>
+            <ellipse cx="354" cy="334" rx="30" ry="7" fill="#2f353c"/>
+            <rect x="334" y="236" width="40" height="70" rx="20" fill="url(#chrome)" stroke="#2b1a0c" stroke-width="3"/>
+            <g stroke="#59626d" stroke-width="2"><path d="M340 252 H368"/><path d="M338 262 H370"/><path d="M338 272 H370"/><path d="M338 282 H370"/><path d="M340 292 H368"/></g>
+            <rect x="340" y="296" width="28" height="10" rx="3" fill="#d2412f" stroke="#2b1a0c" stroke-width="2"/>
+          </g>
+          <!-- coffee and scorecard -->
+          <g stroke="#2b1a0c" stroke-width="3">
+            <path d="M58 300 H92 V330 Q92 338 84 338 H66 Q58 338 58 330 Z" fill="#fffaf0"/>
+            <path d="M92 308 C104 308 104 324 92 324" fill="none"/>
+            <rect x="62" y="312" width="26" height="6" fill="#f2c14e" stroke="none"/>
+          </g>
+          <g id="steam" stroke="#fffaf0" stroke-width="3" fill="none" opacity=".7" stroke-linecap="round">
+            <path d="M68 294 C62 284 74 278 68 268"/><path d="M82 294 C76 284 88 278 82 268"/>
+          </g>
+          <g transform="rotate(-8 230 360)">
+            <rect x="196" y="344" width="80" height="44" fill="#f8efd8" stroke="#2b1a0c" stroke-width="2.5"/>
+            <g stroke="#8b6b4a" stroke-width="1.5"><path d="M196 356 H276"/><path d="M196 368 H276"/><path d="M216 344 V388"/><path d="M236 344 V388"/><path d="M256 344 V388"/></g>
+            <path d="M222 360 L230 352 L238 360 L230 368 Z" fill="none" stroke="#d2412f" stroke-width="2"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="console">
+        <div class="signal">
+          <span class="onair-sign" id="onair">ON AIR</span>
+          <svg class="meter" viewBox="0 0 200 112" aria-hidden="true">
+            <rect x="2" y="2" width="196" height="108" rx="14" fill="#fff7e2" stroke="#3b2715" stroke-width="4"/>
+            <path d="M30 92 A72 72 0 0 1 170 92" fill="none" stroke="#3b2715" stroke-width="3"/>
+            <path d="M136 41 A72 72 0 0 1 170 92" fill="none" stroke="#d2412f" stroke-width="7"/>
+            <g stroke="#3b2715" stroke-width="2.5"><path d="M38 70 l8 4"/><path d="M58 44 l6 7"/><path d="M100 26 v9"/><path d="M142 44 l-6 7"/><path d="M162 70 l-8 4"/></g>
+            <text x="100" y="64" text-anchor="middle" font-family="Big Shoulders Display, Impact, sans-serif" font-weight="800" font-size="16" fill="#3b2715" letter-spacing="2">VOICE</text>
+            <line id="needle" x1="100" y1="96" x2="100" y2="30" stroke="#22170c" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="100" cy="96" r="8" fill="#b07a22" stroke="#3b2715" stroke-width="3"/>
+          </svg>
+          <span class="now-label" id="nowlabel">Off the air</span>
+        </div>
+        <div class="caption" id="caption" aria-live="polite">Press <b>Turn on Bob</b> and he'll start calling the most recent Brewers game.<small>Bob's words also appear here in large print.</small></div>
+        <div class="row">
+          <button class="brass" id="power">Turn on Bob</button>
+          <button id="pause" hidden>Pause</button>
+        </div>
+        <div class="row vol" role="group" aria-label="Volume">
+          <span>Volume</span>
+          <button id="quieter">Quieter</button>
+          <output id="volout" aria-live="polite">80%</output>
+          <button id="louder">Louder</button>
+        </div>
+        <p class="status" id="status">Looking for Bob&hellip;</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section gutter" aria-labelledby="sb-h">
+    <div class="wrap board-frame">
+      <div class="board-top">
+        <h2 id="sb-h">Scoreboard</h2>
+        <span class="inning-tag" id="inningtag">Waiting for the first pitch</span>
+      </div>
+      <div class="sbwrap" id="sbwrap"><p class="board-empty">The score fills in as Bob calls the game, so replays never give away the ending.</p></div>
+      <div class="field" id="fieldrow" hidden>
+        <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base">
+          <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
+          <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
+          <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
+          <path d="M50 88 H70 L70 94 L60 99 L50 94 Z" fill="#f6f1e1"/>
+        </svg>
+        <div class="who">
+          <div class="outs" aria-label="Outs"><b>OUTS</b><i id="o1"></i><i id="o2"></i><i id="o3"></i></div>
+          <div><b>AT BAT</b><span id="batter"></span></div>
+          <div><b>PITCHING</b><span id="pitcher"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section gutter" aria-labelledby="games-h">
+    <div class="wrap">
+      <h2 id="games-h">Pick a game</h2>
+      <p class="lede">Each ticket is one World Series game. Finished games play from the first pitch. A game that is on right now plays live, and Bob catches you up first.</p>
+      <div class="tickets" id="games"><p class="lede">Loading the World Series schedule&hellip;</p></div>
+    </div>
+  </section>
+
+  <section class="section gutter" aria-label="Souvenir program">
+    <div class="wrap program">
+      <div>
+        <h2>The Brewers</h2>
+        <svg class="art" viewBox="0 0 340 120" aria-hidden="true">
+          <path d="M14 14 L320 60 L14 106 Z" fill="#1c3768" stroke="#3b2715" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="4" y="8" width="14" height="106" rx="4" fill="#b07a22" stroke="#3b2715" stroke-width="3"/>
+          <text x="40" y="70" font-family="Limelight, Georgia, serif" font-size="28" fill="#f2c14e">Milwaukee</text>
+          <g transform="translate(286 30)"><circle r="22" fill="#fffaf0" stroke="#3b2715" stroke-width="3"/>
+            <path d="M-12 -18 C-4 -8 -4 8 -12 18 M12 -18 C4 -8 4 8 12 18" fill="none" stroke="#d2412f" stroke-width="2.5"/></g>
+        </svg>
+        <p>The club began as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season. In 1982 "Harvey's Wallbangers" led the majors in home runs and reached the World Series, the "Suds Series," losing to St. Louis in seven games. That team had five future Hall of Famers: Robin Yount, Paul Molitor, Rollie Fingers, Ted Simmons and Don Sutton.</p>
+        <p>In 2026 the Brewers won the National League pennant by sweeping the Los Angeles Dodgers four games to none, with Jake Bauers named NLCS MVP. Now they face Tampa Bay for the first championship in team history.</p>
+      </div>
+      <div>
+        <h2>An ode to Bob</h2>
+        <p>For fifty-four seasons, summer in Milwaukee sounded like Bob Uecker. "Mr. Baseball" called Brewers games on the radio from 1971 through 2024, and every night with him felt like company.</p>
+        <ol class="years">
+          <li><span class="y">1956</span><span>A Milwaukee kid signs with his hometown Braves.</span></li>
+          <li><span class="y">1962</span><span>Starts six seasons as a big-league backup catcher with the Braves, Cardinals and Phillies. He liked to say a career highlight was an intentional walk from Sandy Koufax.</span></li>
+          <li><span class="y">1964</span><span>Wins a World Series ring with the St. Louis Cardinals.</span></li>
+          <li><span class="y">1971</span><span>Joins the Brewers radio booth, where he stays for the rest of his life.</span></li>
+          <li><span class="y">1980s</span><span>Johnny Carson calls him "Mr. Baseball." He stars on <i>Mr. Belvedere</i>, sells Miller Lite and plays announcer Harry Doyle in <i>Major League</i>.</span></li>
+          <li><span class="y">2003</span><span>Receives the Ford C. Frick Award from the Baseball Hall of Fame.</span></li>
+          <li><span class="y">2025</span><span>Dies on January 16 at age 90. Fans still sit beside his bronze statue in the Uecker Seat.</span></li>
+        </ol>
+        <p class="coda">He never got to call a Brewers championship. This little booth keeps a light on for him.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="fine gutter"><div class="wrap">
+    <p>Bob is an AI announcer made for fun. Gemini writes his lines from MLB's public pitch-by-pitch data, and a cloned voice reads them. Bob is not Bob Uecker, and these are not Uecker's words or voice. This fan page is not connected to MLB or the Milwaukee Brewers. All artwork is original.</p>
+    <p>Bob only broadcasts while his studio computer is running. If the page says he's off the air, check back later.</p>
+  </div></footer>
+</main>
+
+<script>
+const TOPIC = "bobs-booth-mke-4q7v2k";
+const SAME = /trycloudflare\.com$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+let API = SAME ? "" : null;
+const $ = id => document.getElementById(id);
+const players = [new Audio(), new Audio()];
+players.forEach(p => p.crossOrigin = "anonymous");   // lets the voice meter read audio from Bob's studio on another address
+let vol = 0.8, gen = -1, last = 0, queue = [], playing = false, listening = false, paused = false, state = null, active = null, pre = null;
+let ctx = null, analyser = null, gain = null, buf = null, lvl = 0;
+
+async function findStudio(){
+  if (API !== null) return API;
+  try{
+    const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=all`, {cache:"no-store"});
+    const msgs = (await r.text()).trim().split("\n").filter(Boolean).map(l => JSON.parse(l)).filter(m => m.event === "message");
+    const url = (msgs.length ? msgs[msgs.length - 1].message : "").trim();
+    if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url)){
+      const ok = await fetch(url + "/state", {cache:"no-store"}).catch(() => null);
+      if (ok && ok.ok){ API = url; return API; }
+    }
+  }catch(e){}
+  return null;
+}
+const api = (p, o) => fetch(API + "/" + p, Object.assign({cache:"no-store"}, o || {}));
+
+// ----- sound: two players so the next clip is already loaded when this one ends -----
+function initAudio(){
+  if (ctx) { ctx.resume(); return; }
+  try{
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+    gain = ctx.createGain(); gain.gain.value = vol;
+    analyser.connect(gain); gain.connect(ctx.destination);
+    players.forEach(p => { ctx.createMediaElementSource(p).connect(analyser); p.volume = 1; });
+    requestAnimationFrame(tick);
+  }catch(e){ ctx = null; }
+}
+function tick(){
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  const target = Math.min(1, Math.sqrt(s / buf.length) * 7);
+  lvl += (target - lvl) * (target > lvl ? .6 : .25);
+  $("mouth").style.transform = `scaleY(${(.12 + lvl * .95).toFixed(3)})`;
+  $("needle").style.transform = `rotate(${(-55 + lvl * 110).toFixed(1)}deg)`;
+  requestAnimationFrame(tick);
+}
+function preload(){
+  if (!queue.length || (pre && pre.id === queue[0].id)) return;
+  const el = players.find(p => p !== active);
+  el.src = API + "/clip/" + queue[0].id; el.preload = "auto"; el.load(); pre = {id: queue[0].id, el};
+}
+function playNext(){
+  if (!listening || paused || playing || !queue.length) return;
+  const c = queue.shift();
+  let el;
+  if (pre && pre.id === c.id) el = pre.el; else { el = players.find(p => p !== active) || players[0]; el.src = API + "/clip/" + c.id; }
+  pre = null; active = el; playing = true;
+  if (!ctx) el.volume = vol;
+  showClip(c);
+  $("stage").classList.toggle("talking", !ctx);
+  el.play().catch(() => { playing = false; $("stage").classList.remove("talking"); });
+  preload();
+}
+players.forEach(p => {
+  p.onended = () => { playing = false; $("stage").classList.remove("talking"); playNext(); };
+  p.onerror = () => { if (p === active){ playing = false; setTimeout(playNext, 400); } };
+});
+
+function showClip(c){
+  $("caption").textContent = c.text;
+  if (c.board) renderBoard(c.board);
+}
+function setOnAir(on, label){
+  $("stage").classList.toggle("on", on);
+  $("nowlabel").textContent = on ? label : "Off the air";
+}
+
+// ----- scoreboard -----
+function ord(n){ const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function renderBoard(b){
+  const n = Math.max(9, b.line.away.length, b.line.home.length);
+  const t = document.createElement("table"); t.className = "sb";
+  const head = t.createTHead().insertRow();
+  head.insertCell().outerHTML = '<th scope="col"><span class="sr">Team</span></th>';
+  for (let i = 1; i <= n; i++){ const th = document.createElement("th"); th.scope = "col"; th.textContent = i; head.append(th); }
+  for (const k of ["R","H"]){ const th = document.createElement("th"); th.scope = "col"; th.className = "tot"; th.textContent = k; head.append(th); }
+  const body = t.createTBody();
+  for (const side of ["away","home"]){
+    const r = body.insertRow(); const th = document.createElement("th"); th.scope = "row"; th.textContent = b.ab[side]; r.append(th);
+    for (let i = 0; i < n; i++){
+      const td = r.insertCell(); const v = b.line[side][i]; td.textContent = v == null ? "" : v;
+      if (b.inning === i + 1 && (b.half === "top") === (side === "away")) td.className = "now";
+    }
+    const R = r.insertCell(); R.className = "tot"; R.textContent = b.score[side];
+    const H = r.insertCell(); H.className = "tot"; H.textContent = b.hits[side];
+  }
+  $("sbwrap").replaceChildren(t);
+  $("fieldrow").hidden = false;
+  $("inningtag").textContent = `${b.half === "top" ? "Top" : "Bottom"} of the ${ord(b.inning)}`;
+  ["b1","b2","b3"].forEach((id, i) => $(id).classList.toggle("on", !!b.bases[i]));
+  ["o1","o2","o3"].forEach((id, i) => $(id).classList.toggle("on", i < b.outs));
+  $("batter").textContent = b.batter || "";
+  $("pitcher").textContent = b.pitcher || "";
+}
+
+// ----- talking to Bob's studio -----
+async function poll(){
+  if (API === null && !(await findStudio())){
+    setOnAir(false); $("status").innerHTML = "<strong>Bob is off the air.</strong> His studio computer is switched off right now.";
+    $("power").disabled = true; setTimeout(poll, 30000); return;
+  }
+  try{
+    state = await (await api("state")).json();
+    $("power").disabled = false;
+    if (state.gen !== gen){ gen = state.gen; queue = []; last = 0; pre = null; players.forEach(p => p.pause()); playing = false; }
+    const fresh = await (await api(`since/${gen}/${last}`)).json();
+    fresh.forEach(c => { queue.push(c); last = c.id; });
+    const on = !!state.pk;
+    setOnAir(listening && on, state.label.replace(/ - (live|replay).*/, ""));
+    $("status").innerHTML = on ? `Now broadcasting: <strong></strong>` : "Bob's studio is ready. Pick a game below.";
+    if (on) $("status").querySelector("strong").textContent = state.label;
+    if (playing) preload(); else playNext();
+  }catch(e){
+    API = SAME ? "" : null;
+    $("status").textContent = "Lost the signal. Trying again in a moment.";
+  }
+  setTimeout(poll, 2000);
+}
+
+function when(d){ return new Date(d).toLocaleString([], {weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit"}); }
+let gamesCache = [];
+async function loadGames(){
+  if (API === null){ setTimeout(loadGames, 5000); return; }
+  try{
+    gamesCache = await (await api("games")).json();
+    const box = $("games"); box.replaceChildren();
+    if (!gamesCache.length){ box.innerHTML = '<p class="lede">No Brewers World Series games are listed yet.</p>'; }
+    gamesCache.forEach(g => {
+      const live = g.state === "Live", fin = g.state === "Final";
+      const card = document.createElement("article");
+      card.className = "ticket" + (state && state.pk === g.pk ? " tuned" : "");
+      card.innerHTML = `<div class="stub"><span>GAME</span><strong></strong></div><div class="tbody"><p class="match"></p><p class="when"></p></div>`;
+      card.querySelector("strong").textContent = g.num;
+      card.querySelector(".match").textContent = `${g.away} at ${g.home}`;
+      card.querySelector(".when").textContent = live ? `On now, ${g.inning}` : fin ? `Final: ${g.away} ${g.awayRuns}, ${g.home} ${g.homeRuns}` : when(g.date);
+      if (live || fin){ const st = document.createElement("span"); st.className = "stamp" + (live ? " live" : ""); st.textContent = live ? "ON NOW" : "FINAL"; card.append(st); }
+      const add = (label, mode) => { const b = document.createElement("button"); b.textContent = label; b.onclick = () => tune(g.pk, mode); card.querySelector(".tbody").append(b); };
+      if (live){ add("Listen live", "live"); add("Start from the first pitch", "replay"); }
+      else if (fin) add("Play this game", "replay");
+      else add("Wait for first pitch", "live");
+      box.append(card);
+    });
+  }catch(e){}
+  setTimeout(loadGames, 30000);
+}
+
+async function tune(pk, mode){
+  initAudio();
+  await api("play", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({pk, mode})});
+  startListening(); setTimeout(loadGames, 400);
+  $("stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+}
+function startListening(){
+  listening = true; paused = false;
+  $("power").textContent = "Turn off Bob"; $("pause").hidden = false; $("pause").textContent = "Pause";
+  $("caption").textContent = "Warming up the microphone. Bob will start talking in a few seconds.";
+  playNext();
+}
+$("power").onclick = () => {
+  if (listening){
+    listening = false; players.forEach(p => p.pause()); playing = false; queue = []; pre = null;
+    $("power").textContent = "Turn on Bob"; $("pause").hidden = true; setOnAir(false); $("stage").classList.remove("talking");
+    $("caption").textContent = "Bob is turned off on this device."; return;
+  }
+  initAudio();
+  if (state && state.pk){ startListening(); return; }
+  const live = gamesCache.find(g => g.state === "Live");
+  const lastFinal = [...gamesCache].reverse().find(g => g.state === "Final");
+  const pick = live || lastFinal;
+  if (pick) tune(pick.pk, live ? "live" : "replay"); else startListening();
+};
+$("pause").onclick = () => {
+  paused = !paused; $("pause").textContent = paused ? "Keep listening" : "Pause";
+  if (paused){ if (active) active.pause(); $("stage").classList.remove("talking"); }
+  else if (playing && active) active.play().catch(() => {}); else playNext();
+};
+function setVol(v){
+  vol = Math.max(0, Math.min(1, Math.round(v * 10) / 10));
+  if (gain) gain.gain.value = vol; else players.forEach(p => p.volume = vol);
+  $("volout").textContent = Math.round(vol * 100) + "%";
+}
+$("quieter").onclick = () => setVol(vol - .1);
+$("louder").onclick = () => setVol(vol + .1);
+
+if (new URLSearchParams(location.search).has("auto")) listening = true;
+poll(); loadGames();
+</script>
+</body>
+</html>
