@@ -434,11 +434,47 @@ function renderBoard(b){
   $("pitcher").textContent = b.pitcher || "";
 }
 
+// ----- straight from MLB, for when Bob's studio is off -----
+const MLB = "https://statsapi.mlb.com/api/v1";
+let offairTitle = false;
+async function mlbGames(){
+  const j = await (await fetch(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`, {cache:"no-store"})).json();
+  const out = [];
+  (j.dates || []).forEach(d => d.games.forEach(g => {
+    const a = g.teams.away, h = g.teams.home, ls = g.linescore || {};
+    out.push({pk: g.gamePk, num: g.seriesGameNumber || out.length + 1, date: g.gameDate, state: g.status.abstractGameState,
+      away: a.team.name, home: h.team.name, awayAb: a.team.abbreviation, homeAb: h.team.abbreviation,
+      awayRuns: a.score, homeRuns: h.score, inning: ((ls.inningHalf || "") + " " + (ls.currentInningOrdinal || "")).trim()});
+  }));
+  return out;
+}
+async function mlbLive(g){
+  try{
+    const ls = await (await fetch(`${MLB}/game/${g.pk}/linescore`, {cache:"no-store"})).json();
+    const line = {away: [], home: []};
+    (ls.innings || []).forEach(i => { line.away[i.num - 1] = i.away && i.away.runs != null ? i.away.runs : null;
+                                      line.home[i.num - 1] = i.home && i.home.runs != null ? i.home.runs : null; });
+    const o = ls.offense || {}, d = ls.defense || {};
+    renderBoard({ab: {away: g.awayAb || short(g.away).slice(0, 3).toUpperCase(), home: g.homeAb || short(g.home).slice(0, 3).toUpperCase()},
+      line, score: {away: ls.teams.away.runs || 0, home: ls.teams.home.runs || 0}, hits: {away: ls.teams.away.hits || 0, home: ls.teams.home.hits || 0},
+      inning: ls.currentInning || 1, half: (ls.inningHalf || "Top").toLowerCase() === "top" ? "top" : "bottom",
+      bases: [o.first ? 1 : 0, o.second ? 1 : 0, o.third ? 1 : 0], outs: ls.outs || 0,
+      batter: o.batter ? o.batter.fullName : "", pitcher: d.pitcher ? d.pitcher.fullName : ""});
+    setTitle(`Game ${g.num}: ${g.away} at ${g.home} - live`); offairTitle = true;
+    const k = $("kick"); k.innerHTML = '<span class="chip gold">2026 World Series</span><span class="chip live">Live score</span>';
+  }catch(e){}
+}
+
 // ----- Bob's studio -----
 async function poll(){
   if (API === null && !(await findStudio())){
-    setOnAir(false); $("status").textContent = "Bob is off the air. His studio computer is switched off right now. Check back at game time.";
-    $("power").disabled = true; setTimeout(poll, 30000); return;
+    setOnAir(false); $("power").disabled = true;
+    const live = gamesCache.find(g => g.state === "Live");
+    $("status").textContent = live
+      ? "Bob's studio is switched off right now, so this is the live score straight from MLB. It updates by itself."
+      : "Bob is off the air. His studio computer is switched off right now. Check back at game time.";
+    if (live) await mlbLive(live); else if (offairTitle) { setTitle(""); offairTitle = false; }
+    setTimeout(poll, live ? 15000 : 30000); return;
   }
   try{
     state = await (await api("state")).json();
@@ -462,9 +498,9 @@ const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:
 const timeFmt = d => new Date(d).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
 let gamesCache = [];
 async function loadGames(){
-  if (API === null){ setTimeout(loadGames, 5000); return; }
+  const studio = API !== null;
   try{
-    gamesCache = await (await api("games")).json();
+    gamesCache = studio ? await (await api("games")).json() : await mlbGames();
     const box = $("games"); box.replaceChildren();
     if (!gamesCache.length) box.innerHTML = "<p>No Brewers World Series games are listed yet.</p>";
     gamesCache.forEach(g => {
@@ -481,13 +517,14 @@ async function loadGames(){
       else if (fin){ s.className = "s fin"; s.innerHTML = "Final: <b></b>"; s.querySelector("b").textContent = `${a} ${g.awayRuns}, ${h} ${g.homeRuns}`; }
       else s.textContent = "First pitch " + timeFmt(g.date);
       const add = (label, mode, alt) => { const b = document.createElement("button"); b.textContent = label; if (alt) b.className = "alt"; b.onclick = () => tune(g.pk, mode); tk.querySelector(".tk-actions").append(b); };
-      if (live){ add("Listen live", "live"); add("From the first pitch", "replay", true); }
+      if (!studio){ const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob is off the air right now."; tk.querySelector(".tk-actions").append(n); }
+      else if (live){ add("Listen live", "live"); add("From the first pitch", "replay", true); }
       else if (fin) add("Play this game", "replay");
       else add("Wait for first pitch", "live", true);
       box.append(tk);
     });
   }catch(e){}
-  setTimeout(loadGames, 30000);
+  setTimeout(loadGames, studio ? 30000 : 60000);
 }
 
 async function tune(pk, mode){
