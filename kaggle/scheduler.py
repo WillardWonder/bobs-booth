@@ -58,9 +58,18 @@ def have_replay(num):
         return False
 
 
-def start():
-    log("starting Bob's studio on Kaggle")
-    code, out = kaggle("kernels", "push", "-p", os.path.join(ROOT, "kaggle", "kernel"))
+def start(mode="live"):
+    """Pushing the notebook starts a new background run of it. mode: live, test or render."""
+    log(f"starting Bob's studio on Kaggle ({mode})")
+    src = os.path.join(ROOT, "kaggle", "kernel")
+    tmp = os.path.join(ROOT, ".kernel-push")
+    shutil.rmtree(tmp, ignore_errors=True)
+    shutil.copytree(src, tmp)
+    nb = os.path.join(tmp, "bobs-booth-studio.ipynb")
+    text = open(nb).read().replace('setdefault(\\"BOB_MODE\\", \\"live\\")', f'setdefault(\\"BOB_MODE\\", \\"{mode}\\")')
+    open(nb, "w").write(text)
+    code, out = kaggle("kernels", "push", "-p", tmp)
+    shutil.rmtree(tmp, ignore_errors=True)
     log(out[-400:])
     return code == 0
 
@@ -115,6 +124,9 @@ def main():
             log(f"Game {target['num']} is close and the studio is {st}")
         else:
             log("no game within the next 70 minutes")
+    if ACTION in ("test", "render") and not running:
+        start(ACTION)
+        return
     if ACTION in ("auto", "collect") and not running:
         missing = [g for g in gs if g["state"] == "Final" and not have_replay(g["num"])]
         if missing or ACTION == "collect":

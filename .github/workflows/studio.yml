@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "auto, start or collect"
+        description: "auto, start, collect, test or render"
         default: auto
 
 permissions:
