@@ -366,7 +366,40 @@ def writer_lat():
     return max(WRITE.lat if WRITE else 2.0, LOCAL.lat if LOCAL else 0.0)
 
 
-def ask(task, facts, mem, fallback, words=None, volume=False):
+NUMW = {"zero": 0, "oh": 0, "no": 0, "nobody": 0, "one": 1, "two": 2, "three": 3, "four": 4}
+COUNT_RE = re.compile(r"\b(zero|oh|one|two|three|four|[0-4])(?:\s+and\s+|\s*-\s*)(zero|oh|one|two|three|[0-3])\b(?!\s+(?:runs?|innings?|hits?|games?|wins?|outs?|on|lead))", re.I)
+OUTS_RE = re.compile(r"\b(nobody|no|zero|one|two|three|[0-3])\s+(?:outs?|away)\b", re.I)
+
+
+def num(w):
+    return int(w) if w.isdigit() else NUMW[w.lower()]
+
+
+def check_line(t, allow, mem):
+    """Mistakes a radio man would never make: a count or number of outs that isn't true, or repeating himself."""
+    bad = []
+    if allow and allow.get("counts") is not None:
+        ok = allow["counts"]
+        for a, b in COUNT_RE.findall(t):
+            if (num(a), num(b)) not in ok:
+                bad.append(f"it says the count is {a} and {b}, which is not one of the counts in the facts")
+        for a, b in re.findall(r"\b(zero|no|one|two|three|four|[0-4])\s+balls?\s+and\s+(zero|no|one|two|three|[0-3])\s+strikes?\b", t, re.I):
+            if (num(a), num(b)) not in ok:
+                bad.append(f"it says {a} balls and {b} strikes, which is not one of the counts in the facts")
+        if re.search(r"\bfull count\b", t, re.I) and (3, 2) not in ok:
+            bad.append("it says full count, but the count was never three and two")
+    if allow and allow.get("outs") is not None:
+        for w in OUTS_RE.findall(t):
+            if num(w) not in allow["outs"]:
+                bad.append(f"it says {w} out, which is wrong")
+    cap = caption(t).lower()
+    for m in mem[-4:]:
+        if difflib.SequenceMatcher(None, cap, m.lower()).ratio() > 0.75:
+            bad.append("it repeats one of your last lines; say something new"); break
+    return bad
+
+
+def ask(task, facts, mem, fallback, words=None, volume=False, allow=None):
     """volume=True: routine lines (pitches, filler) go to the local model first, saving Gemini's small daily allowance
     for results, inning breaks, big moments and the pregame."""
     recent = ("Your last lines on the air. Do NOT reuse their openings, phrases or jokes:\n" + "\n".join("- " + x for x in mem[-6:]) + "\n\n") if mem else ""
@@ -382,7 +415,12 @@ def ask(task, facts, mem, fallback, words=None, volume=False):
             t = clean(w(q, **kw))
             if t and RISKY.search(t):
                 t = clean(w(p + "\n\nRewrite this with plainer, family-friendly wording and no possible double meaning: " + t, **kw))
-            if t and not RISKY.search(t):
+            bad = check_line(t, allow, mem) if t else ["empty"]
+            if t and bad and bad != ["empty"]:
+                log("  rewriting a line:", "; ".join(bad))
+                t = clean(w(q + "\n\nYour first try had mistakes: " + "; ".join(bad) + ". Write it again with the exact facts.", **kw))
+                bad = check_line(t, allow, mem) if t else ["empty"]
+            if t and not bad and not RISKY.search(t):
                 return t
         except Exception as e:
             log("writer:", str(e)[:160])
@@ -870,9 +908,11 @@ class Director:
     def words_for(self, secs):
         return max(5, min(75, min(secs, self.max_secs()) * self.voice.wps))
 
-    def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None):
+    def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None, allow=None):
+        if allow is None and kind in ("story", "action", "change"):
+            allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)}}
         text = text or ask(task + (BIG if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
-                           volume=kind in ("pitch", "action", "story") and not hot)
+                           volume=kind in ("pitch", "action", "story") and not hot, allow=allow)
         if not text:
             return None
         wav = self.voice.say(text, hot)
@@ -1018,8 +1058,11 @@ class Director:
             p = res["p"]
             before = self.box.apply(p)
             hot = big_moment(p, before, self.box)
+            counts = {(0, 0)} | {count_before(e, p) for e in p.get("playEvents", []) if e.get("isPitch")} | \
+                     {((e.get("count") or {}).get("balls", 0), (e.get("count") or {}).get("strikes", 0)) for e in p.get("playEvents", []) if e.get("isPitch")}
             self.say(RESULT, self.result_facts(p, before, actions), p["result"].get("description", ""), "play",
-                     min(room, 20 if hot else 14), hot=hot, event_t=res["t"])
+                     min(room, 20 if hot else 14), hot=hot, event_t=res["t"],
+                     allow={"counts": counts, "outs": {before["outs"], min(self.box.outs, 3)}})
             self.hint = "result"
             self.inning_end()
             return
@@ -1035,8 +1078,13 @@ class Director:
             self.hint = "visit"
         else:
             self.hint = "pitch"
+        counts = {(self.box.balls, self.box.strikes)}
+        for e in pitches:
+            c = e["e"].get("count") or {}
+            counts |= {count_before(e["e"], e["p"]), (c.get("balls", 0), c.get("strikes", 0))}
         self.say(PITCH if pitches else ACTION, "\n".join(facts), "; ".join(lines) or " ".join(acts),
-                 "pitch" if pitches else "action", min(room, 13), event_t=last["t"])
+                 "pitch" if pitches else "action", min(room, 13), event_t=last["t"],
+                 allow={"counts": counts, "outs": {min(self.box.outs, 3)}})
 
     def result_facts(self, p, before, actions):
         a, r, m = p["about"], p["result"], p.get("matchup", {})
