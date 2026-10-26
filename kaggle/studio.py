@@ -1045,6 +1045,8 @@ class Director:
         if not text:
             return None
         wav = self.voice.say(text, hot)
+        if hot:
+            log(f"  excited voice ({hot}): {caption(text)[-90:]}")
         self.mem.append(caption(text)); del self.mem[:-8]
         self.said += 1
         if FIRST_PERSON.search(caption(text)):
