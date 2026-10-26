@@ -10,6 +10,7 @@ import os, sys, re, json, time, random, threading, subprocess, socket, glob, dif
 from datetime import datetime
 
 ON_KAGGLE = os.path.exists("/kaggle/working")
+ON_COLAB = not ON_KAGGLE and ("COLAB_RELEASE_TAG" in os.environ or os.path.exists("/content"))
 WORK = "/kaggle/working" if ON_KAGGLE else "/content"
 MODE = os.environ.get("BOB_MODE", "live").strip().lower()
 RENDER = [x for x in os.environ.get("BOB_RENDER", "").replace(" ", "").split(",") if x]
@@ -53,18 +54,20 @@ def setup():
 def secret(name):
     if os.environ.get(name):
         return os.environ[name]
-    try:
-        from kaggle_secrets import UserSecretsClient
-        v = UserSecretsClient().get_secret(name)
-        if v:
-            return v
-    except Exception:
-        pass
-    try:
-        from google.colab import userdata
-        return userdata.get(name)
-    except Exception:
-        return None
+    if ON_KAGGLE:
+        try:
+            from kaggle_secrets import UserSecretsClient
+            return UserSecretsClient().get_secret(name) or None
+        except Exception as e:
+            log(f"secret {name} not available: {str(e)[:120]}")
+            return None
+    if ON_COLAB:
+        try:
+            from google.colab import userdata
+            return userdata.get(name)
+        except Exception:
+            return None
+    return None
 
 
 def to_mp3(src, dst):
@@ -230,13 +233,15 @@ class Writer:
             from google import genai
             self.client = genai.Client(api_key=key)
             self.models = self.pick_models()
-        else:
+        elif ON_COLAB:
             try:
                 from google.colab import ai
                 self.colab = ai
                 log("writer: Colab's built-in Gemini")
             except Exception:
-                log("WARNING: no GEMINI_API_KEY secret, so Bob can only read the plain play descriptions.")
+                pass
+        if self.client is None and self.colab is None:
+            log("WARNING: no GEMINI_API_KEY secret, so Bob can only read the plain play descriptions.")
 
     def pick_models(self):
         names = []
