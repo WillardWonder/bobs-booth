@@ -752,15 +752,19 @@ def events_of(g, seen, done, hold_in_play=True):
     return out
 
 
+HOT_EVENTS = {"single", "double", "triple", "home_run",                       # every hit
+              "strikeout", "strikeout_double_play",                           # every strikeout
+              "grounded_into_double_play", "double_play", "triple_play",     # twin killings
+              "caught_stealing_2b", "caught_stealing_3b", "caught_stealing_home",
+              "pickoff_1b", "pickoff_2b", "pickoff_3b"}
+
+
 def big_moment(p, before, box):
+    """Bob's excited voice: any hit, any run, any strikeout, any double play, and a big out with runners in scoring position."""
     et = p["result"].get("eventType", "")
-    if et in ("home_run", "triple", "triple_play") or p["about"].get("isScoringPlay"):
-        return True
-    if et in ("grounded_into_double_play", "double_play", "strikeout_double_play"):
+    if et in HOT_EVENTS or p["about"].get("isScoringPlay"):
         return True
     risp = before["bases"][1] or before["bases"][2]
-    if risp and et in ("single", "double"):
-        return True
     return bool(risp and before["outs"] == 2 and box.outs >= 3)
 
 
