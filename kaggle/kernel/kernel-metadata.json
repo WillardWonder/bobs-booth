@@ -1,0 +1,16 @@
+{
+  "id": "joshstutting/bobs-booth-studio",
+  "title": "bobs-booth-studio",
+  "code_file": "bobs-booth-studio.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": ["joshstutting/bob-voice"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
