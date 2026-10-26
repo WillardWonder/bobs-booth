@@ -66,8 +66,20 @@ def start(mode="live"):
     shutil.rmtree(tmp, ignore_errors=True)
     shutil.copytree(src, tmp)
     nb = os.path.join(tmp, "bobs-booth-studio.ipynb")
-    text = open(nb).read().replace('setdefault(\\"BOB_MODE\\", \\"live\\")', f'setdefault(\\"BOB_MODE\\", \\"{mode}\\")')
-    open(nb, "w").write(text)
+    book = json.load(open(nb))
+    src = book["cells"][0]["source"]
+    src = [l.replace('setdefault("BOB_MODE", "live")', f'setdefault("BOB_MODE", "{mode}")') for l in src]
+    # Kaggle doesn't hand notebook secrets to runs started through its API, so the Gemini key (a GitHub secret)
+    # rides along inside this private notebook's run instead. It is never printed.
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if key:
+        at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
+        src.insert(at, f"os.environ.setdefault(\"GEMINI_API_KEY\", {json.dumps(key)})\n")
+        log("Gemini key included")
+    else:
+        log("no GEMINI_API_KEY GitHub secret; Bob will use the local writer only")
+    book["cells"][0]["source"] = src
+    json.dump(book, open(nb, "w"), indent=1)
     code, out = kaggle("kernels", "push", "-p", tmp)
     shutil.rmtree(tmp, ignore_errors=True)
     log(out[-400:])
