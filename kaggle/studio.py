@@ -1533,7 +1533,7 @@ def main():
         shutil.rmtree(os.path.join(WORK, "live"), ignore_errors=True)       # keep only the replay files
     elif MODE == "test":
         g1 = next(x for x in series_games() if x["num"] == 1)
-        run_render(g1, voice, innings=int(os.environ.get("BOB_INNINGS", "2")), folder="replays-test")
+        run_render(g1, voice, innings=int(os.environ.get("BOB_INNINGS", "1")), folder="replays-test")
     else:
         gs = series_games()
         todo = [x for x in gs if str(x["pk"]) in RENDER or str(x["num"]) in RENDER] or [x for x in gs if x["state"] == "Final"]
