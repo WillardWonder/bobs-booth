@@ -1135,6 +1135,8 @@ def run_live(game, voice):
             detail = g["gameData"]["status"].get("detailedState", "")
             if "Delay" in detail or "Suspend" in detail or "Review" in detail or "challenge" in detail.lower():
                 expect = max(expect, idle + 60)
+            if not d.box.started:                          # first pitch running late: keep the pregame going
+                expect = max(expect, idle + 45)
             remaining = expect - idle
             ready_in = voice.rtf * 10 + writer_lat() + 1.5        # start the next line early enough to land on time
             if cast.backlog() < ready_in and remaining - cast.backlog() > 10 and idle > 4:
