@@ -8,44 +8,50 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="art/bob-booth.webp">
 <style>
-/* Bob's Booth: a night game at the ballpark. Navy sky, gold lights, a radio player built for fans of every age:
-   20px base type, big buttons, every word Bob says in large print. */
+/* Bob's Booth: a night game at the ballpark. Navy sky, gold lights, framed panels like a broadcast booth.
+   Built for fans of every age: 20px base type, big buttons, every word Bob says in large print. */
 :root{
-  --sky:#07142b; --navy:#0c1f3f; --navy-2:#132a52; --navy-3:#1b3768; --glass:rgba(14,32,64,.72); --glass-2:rgba(255,255,255,.06);
-  --gold:#ffc52f; --gold-2:#f0ad00; --gold-soft:rgba(255,197,47,.16);
-  --ink:#ffffff; --ink-2:#c6d1e6; --ink-3:#8fa0bf; --line:rgba(255,255,255,.12);
-  --live:#e5402b; --field:#1d5a3a;
+  --sky:#061528; --navy:#0c1f3f; --glass-2:rgba(255,255,255,.06);
+  --panel-a:rgba(9,31,57,.97); --panel-b:rgba(5,21,40,.97); --edge:#2b557d; --edge-2:#3b6387;
+  --gold:#ffc52f; --gold-2:#f0ad00; --gold-soft:rgba(255,197,47,.14);
+  --ink:#ffffff; --ink-2:#c6d1e6; --ink-3:#8fa3c2; --line:rgba(140,181,218,.18);
+  --live:#e5402b;
   --cond:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow","Segoe UI",system-ui,sans-serif; --script:"Yellowtail","Brush Script MT",cursive;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{font-size:20px;overflow-x:clip;scroll-behavior:smooth}
+html{font-size:20px;overflow-x:clip;scroll-behavior:smooth;background:var(--sky)}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
 body{margin:0;background:var(--sky);color:var(--ink);font:400 1rem/1.5 var(--body);overflow-x:clip;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
 .g{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1240px;margin:0 auto}
-:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:10px}
+.wrap{max-width:1320px;margin:0 auto}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* the ballpark at night, behind everything */
 .park{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(60% 40% at 18% -6%,rgba(255,231,170,.28),transparent 70%),
-    radial-gradient(60% 40% at 82% -6%,rgba(255,231,170,.24),transparent 70%),
-    radial-gradient(120% 60% at 50% 120%,rgba(34,110,70,.55),transparent 60%),
-    linear-gradient(180deg,#0a1a36 0%,#081530 45%,#071226 100%)}
-.park::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34vh;opacity:.22;
+    radial-gradient(60% 40% at 18% -6%,rgba(255,231,170,.24),transparent 70%),
+    radial-gradient(60% 40% at 82% -6%,rgba(255,231,170,.2),transparent 70%),
+    radial-gradient(120% 60% at 50% 120%,rgba(34,110,70,.5),transparent 60%),
+    linear-gradient(180deg,#0a1f3d 0%,#071830 45%,#051327 100%)}
+.park::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34vh;opacity:.2;
   background:repeating-linear-gradient(90deg,#2a7a4e 0 70px,#226640 70px 140px);
   -webkit-mask:linear-gradient(transparent,#000 70%);mask:linear-gradient(transparent,#000 70%)}
-.park::after{content:"";position:absolute;top:22px;left:6%;right:6%;height:10px;opacity:.6;
+.park::after{content:"";position:absolute;top:22px;left:6%;right:6%;height:10px;opacity:.55;
   background:radial-gradient(circle,rgba(255,244,214,.95) 0 2px,transparent 3px) 0 0/22px 10px repeat-x;
   -webkit-mask:linear-gradient(90deg,#000 0 22%,transparent 22% 78%,#000 78%);mask:linear-gradient(90deg,#000 0 22%,transparent 22% 78%,#000 78%)}
 
+/* the box every section sits in */
+.panel{background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--edge);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.34)}
+
 /* ---------- top bar ---------- */
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(7,20,43,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:#07142b}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(4,17,34,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--edge)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:#041122}
 .top .wrap{display:flex;align-items:center;gap:28px;min-height:72px}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;flex:none}
 .brand svg{width:40px;height:40px;flex:none}
@@ -55,33 +61,45 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .nav a:hover{color:#fff;background:var(--glass-2)}
 .nav a[aria-current="true"]{color:var(--gold)}
 .onair{display:inline-flex;align-items:center;gap:10px;font:700 .9rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
-  border:1px solid var(--line);border-radius:999px;padding:10px 16px;white-space:nowrap}
+  border:1px solid var(--edge);border-radius:999px;padding:10px 16px;white-space:nowrap}
 .onair i{width:10px;height:10px;border-radius:50%;background:#56627a}
 .onair.on{color:#fff;border-color:rgba(229,64,43,.55);background:rgba(229,64,43,.16)}
 .onair.on i{background:var(--live);box-shadow:0 0 0 4px rgba(229,64,43,.25)}
 .onair.rp{color:var(--gold);border-color:rgba(255,197,47,.45);background:var(--gold-soft)}
 .onair.rp i{background:var(--gold);box-shadow:none}
 
-/* ---------- the player ---------- */
-.stage{padding-block:clamp(22px,4vw,44px) 0}
-.player{display:grid;grid-template-columns:minmax(0,1fr) 340px;border-radius:22px;overflow:hidden;
-  background:linear-gradient(135deg,rgba(19,42,82,.9),rgba(10,26,54,.92));border:1px solid rgba(255,197,47,.28);
-  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)}
-.deck{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(18px,3vw,36px);padding:clamp(20px,3.4vw,40px);align-items:center}
-.portrait{width:clamp(120px,15vw,190px);aspect-ratio:1;max-width:100%;border-radius:50%;padding:6px;
-  background:conic-gradient(from 210deg,var(--gold),#fff3c4,var(--gold-2),var(--gold));box-shadow:0 0 0 6px rgba(255,197,47,.12),0 18px 40px rgba(0,0,0,.45)}
-.portrait svg{display:block;width:100%;height:100%;border-radius:50%}
-.portrait.live{animation:glow 2.4s ease-in-out infinite}
-@keyframes glow{50%{box-shadow:0 0 0 12px rgba(255,197,47,.08),0 18px 40px rgba(0,0,0,.45)}}
+/* ---------- the booth: illustration, player, game info ---------- */
+.stage{padding-block:clamp(18px,3vw,32px) 0}
+.hero{display:grid;grid-template-columns:minmax(260px,310px) minmax(0,1fr) minmax(290px,340px);gap:14px;align-items:stretch}
+
+.booth{display:flex;flex-direction:column;justify-content:space-between;gap:16px;min-width:0;padding:12px 12px 22px;border:2px solid var(--edge-2);border-radius:16px;
+  background:linear-gradient(180deg,#0b2744,#081a2f);box-shadow:0 0 0 4px rgba(5,21,39,.72),0 18px 50px rgba(0,0,0,.34)}
+.booth-sign{margin:0;text-align:center;padding:8px 6px 0}
+.booth-sign span{display:block;font:700 .72rem/1 var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2)}
+.booth-sign b{display:block;margin-top:6px;font:400 2.3rem/1.05 var(--script);color:var(--gold);text-shadow:0 2px 12px rgba(0,0,0,.5)}
+#portrait{position:relative;overflow:hidden;border-radius:10px;aspect-ratio:485/570;max-width:100%;background:#0b2744;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#portrait img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+#portrait::after{content:"";position:absolute;inset:0;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:box-shadow .4s}
+#portrait.live::after{box-shadow:inset 0 0 0 3px rgba(255,197,47,.8);animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:inset 0 0 0 3px rgba(255,197,47,.35)}}
+.booth-copy{display:grid;gap:14px;padding:0 8px;text-align:center}
+.tagline{margin:0;font:400 1.5rem/1.15 var(--script);color:#fff}
+.tagline b{font-weight:400;color:var(--gold)}
+.booth-tag{margin:0;display:grid;gap:4px;justify-items:center}
+.booth-tag b{display:flex;align-items:center;gap:9px;font:700 .85rem/1 var(--cond);letter-spacing:.12em;text-transform:uppercase}
+.booth-tag b::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--gold)}
+.booth-tag small{font-size:.72rem;line-height:1.35;color:var(--ink-2)}
+
+.deck{display:flex;flex-direction:column;gap:20px;padding:clamp(20px,2.4vw,30px);min-width:0}
 .now{min-width:0}
 .kick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 10px;font:700 .95rem/1 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
-.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;font:700 .85rem/1 var(--cond);letter-spacing:.1em}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:6px;font:700 .85rem/1 var(--cond);letter-spacing:.1em}
 .pill.live{background:var(--live);color:#fff}
 .pill.live::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1.4s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
-.pill.replay{background:var(--gold-soft);color:var(--gold);border:1px solid rgba(255,197,47,.4)}
-.pill.next{background:var(--glass-2);color:var(--ink-2);border:1px solid var(--line)}
-h1.matchup{margin:0;font:800 clamp(2.1rem,4.6vw,3.4rem)/1 var(--cond);letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.pill.replay{background:var(--gold-soft);color:var(--gold);border:1px solid rgba(255,197,47,.45)}
+.pill.next{background:var(--glass-2);color:var(--ink-2);border:1px solid var(--edge)}
+h1.matchup{margin:0;font:800 clamp(2.1rem,4vw,3.2rem)/1 var(--cond);letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
 .sub{margin:8px 0 0;color:var(--ink-2);font:500 1.05rem/1.4 var(--body)}
 .sub b{color:#fff;font-weight:600}
 .sit{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:12px;font:700 1.05rem/1 var(--cond);letter-spacing:.06em;text-transform:uppercase}
@@ -121,22 +139,22 @@ input[type=range].level::-moz-range-thumb{width:16px;height:16px;border-radius:5
 .meter{display:inline-flex;align-items:flex-end;gap:3px;height:26px}
 .meter b{width:5px;border-radius:2px;background:var(--gold);height:15%;transition:height .08s}
 
-.quote{grid-column:1/-1;margin:0;padding:18px 22px;border:1.5px solid rgba(255,197,47,.55);border-radius:16px;background:rgba(7,20,43,.55);min-height:5.2em}
-.quote .who{display:flex;align-items:center;gap:10px;font:700 .85rem/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
-.quote p{margin:0;font:500 clamp(1.15rem,2vw,1.4rem)/1.5 var(--body);color:#fff;font-style:italic}
+.quote{margin:0;padding:18px 22px;border:1.5px solid rgba(255,197,47,.55);border-radius:10px;background:rgba(4,15,31,.6);min-height:5.2em}
+.quote .who{font:700 .85rem/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.quote p{margin:0;font:500 clamp(1.1rem,1.8vw,1.35rem)/1.5 var(--body);color:#fff;font-style:italic}
 .quote.idle p{color:var(--ink-2);font-style:normal;font-weight:400}
-.chips{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .chips .lbl{font:700 .85rem/1 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-right:4px}
-.chips button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--glass-2);color:var(--ink-2);font:700 .95rem/1 var(--cond);letter-spacing:.04em;cursor:pointer}
-.chips button:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+.chips button{min-height:44px;padding:0 14px;border-radius:7px;border:1px solid var(--edge);background:#0c2e50;color:#e3eaf6;font:700 .95rem/1 var(--cond);letter-spacing:.04em;cursor:pointer}
+.chips button:hover{border-color:#5b86b0;color:#fff}
 .chips button[aria-current="true"]{background:var(--gold);border-color:var(--gold);color:#0b1d3a}
-.status{grid-column:1/-1;margin:0;color:var(--ink-3);font-size:.9rem}
+.status{margin:0;color:var(--ink-3);font-size:.9rem}
 
 /* game info panel */
-.info{background:rgba(5,15,34,.55);border-left:1px solid var(--line);padding:24px 24px 26px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.info{padding:22px 22px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
 .info h2{margin:0;font:700 .85rem/1 var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .teams{display:grid;gap:8px}
-.team{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--glass-2)}
+.team{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .team .badge{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font:800 1.05rem/1 var(--cond);letter-spacing:.04em;color:#0b1d3a;background:var(--gold)}
 .team.away .badge{background:#cfd8e8}
 .team .nm{font:700 1.2rem/1.1 var(--cond);letter-spacing:.04em;text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -149,9 +167,9 @@ input[type=range].level::-moz-range-thumb{width:16px;height:16px;border-radius:5
 .facts{display:grid;gap:7px;font-size:.95rem;min-width:0}
 .facts div{display:flex;gap:10px;align-items:baseline;min-width:0}
 .facts b{font:700 .78rem/1 var(--cond);letter-spacing:.12em;color:var(--ink-3);flex:none;width:5.6em}
-.facts.people{gap:9px;font-size:1rem}
-.facts.people span{white-space:normal}
 .facts span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.facts.people{gap:9px;font-size:1rem;padding-top:14px;border-top:1px solid var(--line)}
+.facts.people span{white-space:normal}
 .outs{display:inline-flex;gap:6px}
 .outs i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--ink-3)}
 .outs i.on{background:var(--gold);box-shadow:none}
@@ -171,14 +189,14 @@ table.sb{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fix
 .empty-note{margin:0;color:var(--ink-3);font-size:.95rem}
 
 /* ---------- sections ---------- */
-.sec{padding-block:clamp(48px,7vw,84px) 0}
-.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 32px;margin-bottom:22px}
+.sec{padding-block:clamp(44px,6vw,72px) 0}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 32px;margin-bottom:20px}
 .sec-h h2{margin:0;font:800 clamp(2rem,4vw,2.8rem)/1 var(--cond);letter-spacing:.02em;text-transform:uppercase}
 .sec-h h2 span{font:400 1.1em/1 var(--script);text-transform:none;color:var(--gold);letter-spacing:0;margin-right:.15em}
 .sec-h p{margin:0;max-width:34em;color:var(--ink-2)}
-.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px}
-.game{display:flex;flex-direction:column;gap:12px;padding:20px;border-radius:18px;background:var(--glass);border:1px solid var(--line);min-width:0}
-.game.tuned{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px}
+.game{display:flex;flex-direction:column;gap:12px;padding:20px;min-width:0}
+.game.tuned{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset,0 18px 50px rgba(0,0,0,.34)}
 .game .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .game .n{font:800 1.6rem/1 var(--cond);text-transform:uppercase;letter-spacing:.02em}
 .game .d{font:600 .9rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
@@ -186,17 +204,21 @@ table.sb{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fix
 .game .s{margin:0;font-size:.95rem;color:var(--ink-2)}
 .game .s.live{color:#ff8a6b;font-weight:600}
 .game .reveal{border:none;background:none;color:var(--gold);font:600 .95rem var(--body);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
-.game .go{margin-top:auto;min-height:54px;border-radius:999px;border:none;cursor:pointer;font:700 1.05rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;background:var(--gold);color:#0b1d3a}
+.game .go{margin-top:auto;min-height:54px;border-radius:8px;border:none;cursor:pointer;font:700 1.05rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;background:var(--gold);color:#0b1d3a}
 .game .go:hover{background:#ffd35e}
 .game .go.alt{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
-.log{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.logbox{padding:6px 24px}
+.log{list-style:none;margin:0;padding:0}
 .log li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:20px;padding:14px 0;border-bottom:1px solid var(--line)}
+.log li:last-child{border-bottom:none}
 .log .t{font:700 .95rem/1.5 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
 .log .x{max-width:52em;color:var(--ink-2)}
 .log .empty{grid-column:1/-1;color:var(--ink-3)}
 .two{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px)}
 .two p{margin:0 0 16px;max-width:36em;color:var(--ink-2)}
-.tribute{margin-top:clamp(48px,7vw,84px);background:linear-gradient(180deg,rgba(255,197,47,.08),rgba(255,197,47,0));border-top:1px solid rgba(255,197,47,.3)}
+.history{padding:clamp(24px,3.4vw,40px)}
+.history p:last-child{margin-bottom:0}
+.tribute{margin-top:clamp(44px,6vw,72px);background:linear-gradient(180deg,rgba(255,197,47,.08),rgba(255,197,47,0));border-top:1px solid rgba(255,197,47,.3)}
 .tribute .two{padding-block:clamp(44px,6vw,72px)}
 .tribute h2{margin:0;font:400 clamp(3rem,7vw,4.6rem)/.95 var(--script);color:var(--gold)}
 .tribute .yrs{display:block;margin:10px 0 18px;font:700 1.2rem var(--cond);letter-spacing:.1em;color:var(--ink-2)}
@@ -211,16 +233,28 @@ footer{color:var(--ink-3);font-size:.9rem;border-top:1px solid var(--line)}
 footer .wrap{padding-block:32px 48px}
 footer p{max-width:72em;margin:0 0 8px}
 
-@media (max-width:980px){
-  .player{grid-template-columns:minmax(0,1fr)}
-  .info{border-left:none;border-top:1px solid var(--line)}
+/* laptop: illustration and player side by side, game info underneath in two columns */
+@media (max-width:1180px){
+  .hero{grid-template-columns:minmax(220px,270px) minmax(0,1fr)}
+  .info{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 28px;align-items:start}
+  .info h2,.nextup{grid-column:1/-1}
+}
+/* tablet and phone: one column, the illustration becomes a banner */
+@media (max-width:860px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .booth-sign{display:none}
+  #portrait{aspect-ratio:auto;height:320px}
+  #portrait img{object-position:50% 16%}
   .nav{display:none}
   .top .wrap{justify-content:space-between}
 }
 @media (max-width:640px){
-  .deck{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}
+  .info{display:flex}
+  #portrait{height:240px}
+  .tagline{display:none}
+  .booth{gap:12px;padding-bottom:16px}
+  .deck{text-align:center}
   .kick,.sit{justify-content:center}
-  .now{width:100%}
   .controls{justify-content:center}
   .vol{max-width:none;flex-basis:100%}
   .meter{display:none}
@@ -228,6 +262,7 @@ footer p{max-width:72em;margin:0 0 8px}
   .chips{justify-content:center}
   .two{grid-template-columns:minmax(0,1fr)}
   .log li{grid-template-columns:minmax(0,1fr);gap:4px}
+  .logbox{padding:4px 18px}
   .brand b{font-size:1.6rem}
   .onair{padding:8px 12px}
 }
@@ -255,87 +290,79 @@ footer p{max-width:72em;margin:0 0 8px}
 
 <main>
   <section class="stage g" id="listen" aria-label="Now playing">
-    <div class="wrap">
-      <div class="player">
-        <div class="deck">
-          <div class="portrait" id="portrait">
-            <svg viewBox="0 0 200 200" role="img" aria-label="A vintage radio microphone">
-              <defs>
-                <radialGradient id="pbg" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#23467f"/><stop offset="1" stop-color="#0b1d3a"/></radialGradient>
-                <linearGradient id="chrome" x1="0" x2="1"><stop offset="0" stop-color="#8f9bb0"/><stop offset=".45" stop-color="#f4f6fa"/><stop offset="1" stop-color="#7d889c"/></linearGradient>
-                <linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#c98f00"/><stop offset=".5" stop-color="#ffd968"/><stop offset="1" stop-color="#c98f00"/></linearGradient>
-              </defs>
-              <rect width="200" height="200" fill="url(#pbg)"/>
-              <g opacity=".22" stroke="#ffc52f" stroke-width="2" fill="none"><path d="M44 70a70 70 0 0 1 0 60"/><path d="M30 58a90 90 0 0 1 0 84"/><path d="M156 70a70 70 0 0 0 0 60"/><path d="M170 58a90 90 0 0 0 0 84"/></g>
-              <rect x="70" y="40" width="60" height="86" rx="30" fill="url(#chrome)"/>
-              <g stroke="#5d687c" stroke-width="2.2" opacity=".75"><path d="M76 62h48M74 72h52M73 82h54M73 92h54M74 102h52M76 112h48"/></g>
-              <rect x="68" y="78" width="64" height="12" rx="4" fill="url(#gold)"/>
-              <path d="M100 126v22" stroke="url(#chrome)" stroke-width="9"/>
-              <path d="M62 150h76" stroke="url(#chrome)" stroke-width="10" stroke-linecap="round"/>
-              <path d="M54 106a46 46 0 0 0 92 0" fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="now">
-            <p class="kick" id="kick"><span>2026 World Series</span></p>
-            <h1 class="matchup" id="matchup">Brewers baseball</h1>
-            <p class="sub" id="sub"><b>Bob</b> · play-by-play</p>
-            <div class="sit" id="sit" hidden><span class="inn" id="sitinn"></span><span class="sc" id="sitsc"></span></div>
-            <div class="bar" id="bar">
-              <div class="track" id="seekwrap"><label class="sr" for="seek">Position in the game</label><input class="seek" id="seek" type="range" min="0" max="1000" value="0" step="1" disabled></div>
-              <div class="livebar" id="livebar" hidden></div>
-              <div class="times"><span id="elapsed">0:00</span><span id="total">&nbsp;</span></div>
-            </div>
-            <div class="controls">
-              <div class="transport">
-                <button class="skip" id="back" aria-label="Back 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9.5A9.5 9.5 0 1 1 6.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M9.4 4.6v5.4H4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
-                <button class="big" id="play" aria-label="Play"><svg id="playicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg></button>
-                <button class="skip" id="fwd" aria-label="Forward 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M23 9.5A9.5 9.5 0 1 0 25.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M22.6 4.6v5.4H28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
-              </div>
-              <div class="vol">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                <label class="sr" for="vol">Volume</label><input class="level" id="vol" type="range" min="0" max="100" value="80">
-              </div>
-              <span class="meter" id="meter" aria-hidden="true" hidden><b></b><b></b><b></b><b></b></span>
-            </div>
-          </div>
-          <div class="quote idle" id="quote" aria-live="polite">
-            <div class="who">Bob, on the call</div>
-            <p id="caption">Press play to hear Bob live when a game is on, or the latest replay when it isn't. Every word he says shows up right here.</p>
-          </div>
-          <div class="chips" id="chips" role="group" aria-label="Jump to an inning" hidden></div>
-          <p class="status" id="status">Looking for Bob's studio&hellip;</p>
-        </div>
+    <div class="wrap hero">
 
-        <aside class="info" aria-labelledby="info-h">
-          <h2 id="info-h">Game info</h2>
-          <div class="teams" id="teams">
-            <div class="team away"><span class="badge" id="awayab">AWAY</span><span class="nm" id="awaynm">Away<small>&nbsp;</small></span><span class="r" id="awayr"></span></div>
-            <div class="team home"><span class="badge" id="homeab">HOME</span><span class="nm" id="homenm">Home<small>&nbsp;</small></span><span class="r" id="homer"></span></div>
+      <aside class="booth" aria-label="Bob in the radio booth">
+        <p class="booth-sign"><span>Live from the radio booth</span><b>Bob's Booth</b></p>
+        <div id="portrait"><img src="art/bob-booth.webp" width="485" height="570" alt="Illustration of a smiling, white-haired radio announcer at a vintage microphone in a ballpark booth"></div>
+        <div class="booth-copy">
+          <p class="tagline">Baseball called with <b>heart, humor and a little old-school magic.</b></p>
+          <p class="booth-tag"><b>Bob · AI play-by-play</b><small>A fan illustration. Bob is an AI, not Bob Uecker.</small></p>
+        </div>
+      </aside>
+
+      <section class="deck panel" aria-label="Broadcast player">
+        <div class="now">
+          <p class="kick" id="kick"><span>2026 World Series</span></p>
+          <h1 class="matchup" id="matchup">Brewers baseball</h1>
+          <p class="sub" id="sub"><b>Bob</b> · play-by-play</p>
+          <div class="sit" id="sit" hidden><span class="inn" id="sitinn"></span><span class="sc" id="sitsc"></span></div>
+          <div class="bar" id="bar">
+            <div class="track" id="seekwrap"><label class="sr" for="seek">Position in the game</label><input class="seek" id="seek" type="range" min="0" max="1000" value="0" step="1" disabled></div>
+            <div class="livebar" id="livebar" hidden></div>
+            <div class="times"><span id="elapsed">0:00</span><span id="total">&nbsp;</span></div>
           </div>
-          <div class="diamondrow" id="situ" hidden>
-            <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base">
-              <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
-              <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
-              <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
-              <path d="M51 86 H69 V92 L60 98 L51 92 Z" fill="#c6d1e6"/>
-            </svg>
-            <div class="facts">
-              <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
-              <div><b>COUNT</b><span id="count"></span></div>
+          <div class="controls">
+            <div class="transport">
+              <button class="skip" id="back" aria-label="Back 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9.5A9.5 9.5 0 1 1 6.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M9.4 4.6v5.4H4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
+              <button class="big" id="play" aria-label="Play"><svg id="playicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg></button>
+              <button class="skip" id="fwd" aria-label="Forward 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M23 9.5A9.5 9.5 0 1 0 25.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M22.6 4.6v5.4H28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
             </div>
+            <div class="vol">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <label class="sr" for="vol">Volume</label><input class="level" id="vol" type="range" min="0" max="100" value="80">
+            </div>
+            <span class="meter" id="meter" aria-hidden="true" hidden><b></b><b></b><b></b><b></b></span>
           </div>
-          <div class="facts people" id="people" hidden>
-            <div><b>AT BAT</b><span id="batter"></span></div>
-            <div><b>PITCHING</b><span id="pitcher"></span></div>
+        </div>
+        <div class="quote idle" id="quote" aria-live="polite">
+          <div class="who">Bob, on the call</div>
+          <p id="caption">Press play to hear Bob live when a game is on, or the latest replay when it isn't. Every word he says shows up right here.</p>
+        </div>
+        <div class="chips" id="chips" role="group" aria-label="Jump to an inning" hidden></div>
+        <p class="status" id="status">Looking for Bob's studio&hellip;</p>
+      </section>
+
+      <aside class="info panel" aria-labelledby="info-h">
+        <h2 id="info-h">Game info</h2>
+        <div class="teams" id="teams">
+          <div class="team away"><span class="badge" id="awayab">AWAY</span><span class="nm" id="awaynm">Away<small>&nbsp;</small></span><span class="r" id="awayr"></span></div>
+          <div class="team home"><span class="badge" id="homeab">HOME</span><span class="nm" id="homenm">Home<small>&nbsp;</small></span><span class="r" id="homer"></span></div>
+        </div>
+        <div class="diamondrow" id="situ" hidden>
+          <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base">
+            <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
+            <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
+            <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
+            <path d="M51 86 H69 V92 L60 98 L51 92 Z" fill="#c6d1e6"/>
+          </svg>
+          <div class="facts">
+            <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
+            <div><b>COUNT</b><span id="count"></span></div>
           </div>
-          <div class="ls" id="ls"></div>
-          <p class="empty-note" id="sbnote">The board fills in as Bob calls the game, so a replay never gives away the ending.</p>
-          <div class="nextup" id="nextup" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            <p id="nexttext"></p>
-          </div>
-        </aside>
-      </div>
+        </div>
+        <div class="facts people" id="people" hidden>
+          <div><b>AT BAT</b><span id="batter"></span></div>
+          <div><b>PITCHING</b><span id="pitcher"></span></div>
+        </div>
+        <div class="ls" id="ls"></div>
+        <p class="empty-note" id="sbnote">The board fills in as Bob calls the game, so a replay never gives away the ending.</p>
+        <div class="nextup" id="nextup" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <p id="nexttext"></p>
+        </div>
+      </aside>
+
     </div>
   </section>
 
@@ -355,16 +382,18 @@ footer p{max-width:72em;margin:0 0 8px}
         <h2 id="log-h"><span>The</span> Call so far</h2>
         <p>In case you stepped away, Bob's earlier calls are kept here, newest first.</p>
       </div>
-      <ol class="log" id="log"><li><span class="empty">Nothing yet. Press play and Bob's calls will collect here.</span></li></ol>
+      <div class="panel logbox"><ol class="log" id="log"><li><span class="empty">Nothing yet. Press play and Bob's calls will collect here.</span></li></ol></div>
     </div>
   </section>
 
   <section class="sec g" id="brewers" aria-labelledby="hist-h">
-    <div class="wrap two">
-      <div class="sec-h" style="margin:0;align-self:start"><h2 id="hist-h"><span>The</span> Brewers</h2></div>
-      <div>
-        <p>The club began as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season, playing at County Stadium until 2000. In 1982 "Harvey's Wallbangers" led the majors in home runs and reached the World Series, the "Suds Series," losing to St. Louis in seven games. That team had five future Hall of Famers: Robin Yount, Paul Molitor, Rollie Fingers, Ted Simmons and Don Sutton.</p>
-        <p>In 2026 the Brewers won the National League pennant by sweeping the Los Angeles Dodgers four games to none, with Jake Bauers named NLCS MVP. Now they face Tampa Bay for the first championship in team history.</p>
+    <div class="wrap">
+      <div class="panel history two">
+        <div class="sec-h" style="margin:0;align-self:start"><h2 id="hist-h"><span>The</span> Brewers</h2></div>
+        <div>
+          <p>The club began as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season, playing at County Stadium until 2000. In 1982 "Harvey's Wallbangers" led the majors in home runs and reached the World Series, the "Suds Series," losing to St. Louis in seven games. That team had five future Hall of Famers: Robin Yount, Paul Molitor, Rollie Fingers, Ted Simmons and Don Sutton.</p>
+          <p>In 2026 the Brewers won the National League pennant by sweeping the Los Angeles Dodgers four games to none, with Jake Bauers named NLCS MVP. Now they face Tampa Bay for the first championship in team history.</p>
+        </div>
       </div>
     </div>
   </section>
