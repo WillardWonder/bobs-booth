@@ -7,273 +7,361 @@
 <meta name="description" content="Brewers World Series radio called by Bob, an AI play-by-play announcer, with a tribute to Bob Uecker.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,600..900,100&family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-/* Bob's Booth. Brewers broadcast, 1970s-80s soul, modern execution.
-   Navy pinstripe "now playing" panel; green manual scoreboard; ticket-stub schedule; tribute.
-   Built for older fans: 20px base type, big targets, captions for every word. */
+/* Bob's Booth: a night game at the ballpark. Navy sky, gold lights, a radio player built for fans of every age:
+   20px base type, big buttons, every word Bob says in large print. */
 :root{
-  --navy:#0e1e3a; --navy-2:#152a4f; --navy-3:#20396a;
-  --gold:#ffc52f; --gold-2:#e3a90f;
-  --royal:#1f4fa3;
-  --paper:#f2eee6; --paper-2:#e8e2d5; --ink:#111b2e; --ink-2:#4a5468; --line:rgba(17,27,46,.14);
-  --field:#1f4a36; --field-2:#183b2b; --cell:#102c20; --chalk:#f2efe4; --chalk-2:#a9c3b4;
-  --onair:#d9472b;
-  --display:"Fraunces",Georgia,"Times New Roman",serif;
-  --cond:"Barlow Condensed","Arial Narrow",sans-serif;
-  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --sky:#07142b; --navy:#0c1f3f; --navy-2:#132a52; --navy-3:#1b3768; --glass:rgba(14,32,64,.72); --glass-2:rgba(255,255,255,.06);
+  --gold:#ffc52f; --gold-2:#f0ad00; --gold-soft:rgba(255,197,47,.16);
+  --ink:#ffffff; --ink-2:#c6d1e6; --ink-3:#8fa0bf; --line:rgba(255,255,255,.12);
+  --live:#e5402b; --field:#1d5a3a;
+  --cond:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow","Segoe UI",system-ui,sans-serif; --script:"Yellowtail","Brush Script MT",cursive;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{font-size:20px;overflow-x:clip}
-body{margin:0;background:var(--navy);color:#fff;font:400 1rem/1.55 var(--body);overflow-x:clip;-webkit-font-smoothing:antialiased}
+html{font-size:20px;overflow-x:clip;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--sky);color:var(--ink);font:400 1rem/1.5 var(--body);overflow-x:clip;-webkit-font-smoothing:antialiased}
 .g{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1200px;margin:0 auto}
-:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1240px;margin:0 auto}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:10px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.display{font-family:var(--display);font-variation-settings:"SOFT" 100;font-weight:800;letter-spacing:-.01em}
-.pin{background-color:var(--navy);background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.045) 0 1px,transparent 1px 26px)}
+
+/* the ballpark at night, behind everything */
+.park{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(60% 40% at 18% -6%,rgba(255,231,170,.28),transparent 70%),
+    radial-gradient(60% 40% at 82% -6%,rgba(255,231,170,.24),transparent 70%),
+    radial-gradient(120% 60% at 50% 120%,rgba(34,110,70,.55),transparent 60%),
+    linear-gradient(180deg,#0a1a36 0%,#081530 45%,#071226 100%)}
+.park::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34vh;opacity:.22;
+  background:repeating-linear-gradient(90deg,#2a7a4e 0 70px,#226640 70px 140px);
+  -webkit-mask:linear-gradient(transparent,#000 70%);mask:linear-gradient(transparent,#000 70%)}
+.park::after{content:"";position:absolute;top:22px;left:6%;right:6%;height:10px;opacity:.6;
+  background:radial-gradient(circle,rgba(255,244,214,.95) 0 2px,transparent 3px) 0 0/22px 10px repeat-x;
+  -webkit-mask:linear-gradient(90deg,#000 0 22%,transparent 22% 78%,#000 78%);mask:linear-gradient(90deg,#000 0 22%,transparent 22% 78%,#000 78%)}
 
 /* ---------- top bar ---------- */
-.top{position:relative}
-.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:18px}
-.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;white-space:nowrap}
-.brand b{font:800 1.6rem/1 var(--display);font-variation-settings:"SOFT" 100;color:var(--gold)}
-.brand span{font:600 1rem/1 var(--cond);letter-spacing:.06em;color:#c3cde2}
-.air{display:inline-flex;align-items:center;gap:10px;font:600 1rem/1 var(--cond);letter-spacing:.06em;color:#c3cde2;
-  border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 16px;white-space:nowrap}
-.air i{width:11px;height:11px;border-radius:50%;background:#6a7389}
-.on .air{color:#fff;border-color:rgba(217,71,43,.6);background:rgba(217,71,43,.14)}
-.on .air i{background:var(--onair);box-shadow:0 0 0 4px rgba(217,71,43,.25)}
-.sleeve{height:12px;background:linear-gradient(var(--gold) 0 3px,var(--royal) 3px 9px,var(--gold) 9px)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(7,20,43,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:#07142b}
+.top .wrap{display:flex;align-items:center;gap:28px;min-height:72px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;flex:none}
+.brand svg{width:40px;height:40px;flex:none}
+.brand b{font:400 1.9rem/1 var(--script);color:var(--gold);letter-spacing:.01em;transform:translateY(2px)}
+.nav{display:flex;gap:4px;margin-right:auto}
+.nav a{font:700 .95rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);text-decoration:none;padding:12px 14px;border-radius:8px;white-space:nowrap}
+.nav a:hover{color:#fff;background:var(--glass-2)}
+.nav a[aria-current="true"]{color:var(--gold)}
+.onair{display:inline-flex;align-items:center;gap:10px;font:700 .9rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:999px;padding:10px 16px;white-space:nowrap}
+.onair i{width:10px;height:10px;border-radius:50%;background:#56627a}
+.onair.on{color:#fff;border-color:rgba(229,64,43,.55);background:rgba(229,64,43,.16)}
+.onair.on i{background:var(--live);box-shadow:0 0 0 4px rgba(229,64,43,.25)}
+.onair.rp{color:var(--gold);border-color:rgba(255,197,47,.45);background:var(--gold-soft)}
+.onair.rp i{background:var(--gold);box-shadow:none}
 
-/* ---------- now playing ---------- */
-.now .wrap{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(28px,5vw,64px);padding-block:clamp(36px,6vw,72px);align-items:start}
-.kick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px}
-.chip{font:600 .95rem/1 var(--cond);letter-spacing:.05em;padding:7px 12px;border-radius:6px;background:rgba(255,255,255,.08);color:#d7deec}
-.chip.live{background:var(--onair);color:#fff}
-.chip.gold{background:var(--gold);color:var(--navy)}
-.title{margin:0;font-size:clamp(3.2rem,9vw,6.4rem);line-height:.92;color:#fff}
-.title small{display:block;margin-top:10px;font:600 clamp(1.4rem,3vw,2rem)/1.15 var(--cond);letter-spacing:.01em;color:#c3cde2}
-.caption{margin:34px 0 0;padding-left:22px;border-left:4px solid var(--gold);font:500 clamp(1.25rem,2.3vw,1.6rem)/1.5 var(--body);color:#fff;min-height:4.6em;max-width:36em}
-.caption.idle{color:#b8c3da;font-weight:400}
-.caption .who{display:block;font:600 .9rem/1 var(--cond);letter-spacing:.08em;color:var(--gold);margin-bottom:10px}
-.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:60px;padding:0 24px;border-radius:999px;cursor:pointer;
-  font:600 1.15rem/1 var(--cond);letter-spacing:.04em;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;transition:background .15s,border-color .15s,transform .08s}
-.btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.6)}
-.btn:active{transform:translateY(1px)}
-.btn svg{width:22px;height:22px;flex:none}
-.btn.primary{min-height:68px;padding:0 34px;font-size:1.35rem;background:var(--gold);color:var(--navy);border-color:var(--gold)}
-.btn.primary:hover{background:#ffd35e}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
-.vol{display:inline-flex;align-items:center;border:1.5px solid rgba(255,255,255,.35);border-radius:999px;min-height:60px}
-.vol button{width:56px;height:56px;border:none;background:none;color:#fff;cursor:pointer;border-radius:999px;display:grid;place-items:center}
-.vol button:hover{background:rgba(255,255,255,.08)}
-.vol button svg{width:22px;height:22px}
-.vol output{font:600 1.15rem var(--cond);min-width:4.6em;text-align:center}
-.vol .lbl{font:600 1rem var(--cond);letter-spacing:.04em;color:#c3cde2;padding-left:18px}
-.meter{display:inline-flex;align-items:flex-end;gap:3px;height:18px;margin-left:2px}
-.meter b{width:4px;border-radius:2px;background:var(--gold);height:20%;transition:height .08s}
-.status{margin:16px 0 0;color:#aab6cf;font-size:.95rem}
+/* ---------- the player ---------- */
+.stage{padding-block:clamp(22px,4vw,44px) 0}
+.player{display:grid;grid-template-columns:minmax(0,1fr) 340px;border-radius:22px;overflow:hidden;
+  background:linear-gradient(135deg,rgba(19,42,82,.9),rgba(10,26,54,.92));border:1px solid rgba(255,197,47,.28);
+  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)}
+.deck{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(18px,3vw,36px);padding:clamp(20px,3.4vw,40px);align-items:center}
+.portrait{width:clamp(120px,15vw,190px);aspect-ratio:1;max-width:100%;border-radius:50%;padding:6px;
+  background:conic-gradient(from 210deg,var(--gold),#fff3c4,var(--gold-2),var(--gold));box-shadow:0 0 0 6px rgba(255,197,47,.12),0 18px 40px rgba(0,0,0,.45)}
+.portrait svg{display:block;width:100%;height:100%;border-radius:50%}
+.portrait.live{animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 12px rgba(255,197,47,.08),0 18px 40px rgba(0,0,0,.45)}}
+.now{min-width:0}
+.kick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 10px;font:700 .95rem/1 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;font:700 .85rem/1 var(--cond);letter-spacing:.1em}
+.pill.live{background:var(--live);color:#fff}
+.pill.live::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1.4s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.pill.replay{background:var(--gold-soft);color:var(--gold);border:1px solid rgba(255,197,47,.4)}
+.pill.next{background:var(--glass-2);color:var(--ink-2);border:1px solid var(--line)}
+h1.matchup{margin:0;font:800 clamp(2.1rem,4.6vw,3.4rem)/1 var(--cond);letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.sub{margin:8px 0 0;color:var(--ink-2);font:500 1.05rem/1.4 var(--body)}
+.sub b{color:#fff;font-weight:600}
+.sit{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:12px;font:700 1.05rem/1 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.sit .inn{color:var(--gold)}
+.sit .sc{color:#fff}
 
-/* ---------- scoreboard ---------- */
-.board{background:linear-gradient(var(--field),var(--field-2));border-radius:14px;padding:20px 20px 22px;color:var(--chalk);
-  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 0 6px #0b2318,0 0 0 8px rgba(255,197,47,.55),0 24px 48px rgba(0,0,0,.4)}
-.board-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
-.board-h h2{margin:0;font:600 1.05rem/1 var(--cond);letter-spacing:.08em;color:var(--chalk-2)}
-.board-h .inn{font:700 1.15rem/1 var(--cond);letter-spacing:.04em;color:var(--gold)}
-.sbwrap{overflow-x:auto;margin-inline:-4px}
-table.sb{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed;font-family:var(--cond);font-variant-numeric:tabular-nums}
-.sb thead th:first-child{width:3.1em}
-.sb thead th.gapc{width:4px}
-.sb th,.sb td{text-align:center;font-weight:700;padding:0}
-.sb thead th{font-size:.85rem;font-weight:600;color:var(--chalk-2);height:22px}
-.sb tbody th{text-align:left;font-size:1.25rem;letter-spacing:.04em;padding-right:6px;white-space:nowrap}
-.sb td{background:var(--cell);border-radius:3px;height:44px;font-size:1.45rem;box-shadow:inset 0 2px 0 rgba(0,0,0,.35)}
-.sb td.now{box-shadow:inset 0 0 0 2px var(--gold)}
-.sb td.tot,.sb th.tot{color:var(--gold)}
-.sb td.gap{background:none;box-shadow:none}
-.situ{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)}
-.diamond{width:92px;height:auto}
-.diamond .base{fill:var(--cell);stroke:var(--chalk-2);stroke-width:2.5}
+.bar{margin-top:22px}
+.track{position:relative;height:28px;display:flex;align-items:center}
+input[type=range].seek{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:99px;margin:0;cursor:pointer;
+  background:linear-gradient(90deg,var(--gold) var(--p,0%),rgba(255,255,255,.18) var(--p,0%))}
+input[type=range].seek::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:4px solid var(--gold);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+input[type=range].seek::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:4px solid var(--gold)}
+input[type=range].seek:disabled{cursor:default}
+.times{display:flex;justify-content:space-between;margin-top:6px;font:600 .85rem/1 var(--cond);letter-spacing:.06em;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.livebar{height:8px;border-radius:99px;background:linear-gradient(90deg,var(--live),#ff8a6b);position:relative;overflow:hidden}
+.livebar::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-100%);animation:sweep 2.6s linear infinite}
+@keyframes sweep{to{transform:translateX(100%)}}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin-top:16px}
+.transport{display:flex;align-items:center;gap:16px}
+.skip,.big{display:grid;place-items:center;border:none;cursor:pointer;color:#fff;background:transparent;border-radius:50%}
+.skip{width:58px;height:58px;border:2px solid rgba(255,255,255,.35)}
+.skip:hover:not(:disabled){border-color:#fff;background:var(--glass-2)}
+.skip:disabled{opacity:.3;cursor:default}
+.skip svg{width:30px;height:30px}
+.big{width:84px;height:84px;background:radial-gradient(circle at 35% 30%,#ffd968,var(--gold) 55%,var(--gold-2));color:#0b1d3a;
+  box-shadow:0 0 0 6px rgba(255,197,47,.18),0 12px 30px rgba(0,0,0,.4);transition:transform .08s}
+.big:hover{transform:scale(1.04)}
+.big:active{transform:scale(.97)}
+.big svg{width:36px;height:36px}
+.vol{display:flex;align-items:center;gap:10px;min-width:0;flex:1;max-width:260px}
+.vol svg{width:26px;height:26px;flex:none;color:var(--ink-2)}
+input[type=range].level{-webkit-appearance:none;appearance:none;flex:1;min-width:80px;height:6px;border-radius:99px;cursor:pointer;
+  background:linear-gradient(90deg,#fff var(--p,80%),rgba(255,255,255,.2) var(--p,80%))}
+input[type=range].level::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+input[type=range].level::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:none}
+.meter{display:inline-flex;align-items:flex-end;gap:3px;height:26px}
+.meter b{width:5px;border-radius:2px;background:var(--gold);height:15%;transition:height .08s}
+
+.quote{grid-column:1/-1;margin:0;padding:18px 22px;border:1.5px solid rgba(255,197,47,.55);border-radius:16px;background:rgba(7,20,43,.55);min-height:5.2em}
+.quote .who{display:flex;align-items:center;gap:10px;font:700 .85rem/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.quote p{margin:0;font:500 clamp(1.15rem,2vw,1.4rem)/1.5 var(--body);color:#fff;font-style:italic}
+.quote.idle p{color:var(--ink-2);font-style:normal;font-weight:400}
+.chips{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips .lbl{font:700 .85rem/1 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-right:4px}
+.chips button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--glass-2);color:var(--ink-2);font:700 .95rem/1 var(--cond);letter-spacing:.04em;cursor:pointer}
+.chips button:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+.chips button[aria-current="true"]{background:var(--gold);border-color:var(--gold);color:#0b1d3a}
+.status{grid-column:1/-1;margin:0;color:var(--ink-3);font-size:.9rem}
+
+/* game info panel */
+.info{background:rgba(5,15,34,.55);border-left:1px solid var(--line);padding:24px 24px 26px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.info h2{margin:0;font:700 .85rem/1 var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.teams{display:grid;gap:8px}
+.team{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--glass-2)}
+.team .badge{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font:800 1.05rem/1 var(--cond);letter-spacing:.04em;color:#0b1d3a;background:var(--gold)}
+.team.away .badge{background:#cfd8e8}
+.team .nm{font:700 1.2rem/1.1 var(--cond);letter-spacing:.04em;text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team .nm small{display:block;font:500 .8rem/1.2 var(--body);letter-spacing:0;text-transform:none;color:var(--ink-3)}
+.team .r{font:800 2.2rem/1 var(--cond);font-variant-numeric:tabular-nums}
+.diamondrow{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;align-items:center}
+.diamond{width:96px;height:auto}
+.diamond .base{fill:rgba(255,255,255,.08);stroke:var(--ink-3);stroke-width:2.5}
 .diamond .base.on{fill:var(--gold);stroke:var(--gold)}
-.facts{display:grid;gap:6px;font-size:1rem;min-width:0}
+.facts{display:grid;gap:7px;font-size:.95rem;min-width:0}
 .facts div{display:flex;gap:10px;align-items:baseline;min-width:0}
-.facts b{font:600 .85rem/1 var(--cond);letter-spacing:.08em;color:var(--chalk-2);flex:none;width:5.2em}
+.facts b{font:700 .78rem/1 var(--cond);letter-spacing:.12em;color:var(--ink-3);flex:none;width:5.6em}
+.facts.people{gap:9px;font-size:1rem}
+.facts.people span{white-space:normal}
 .facts span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.outs{display:inline-flex;gap:7px}
-.outs i{width:16px;height:16px;border-radius:50%;background:var(--cell);box-shadow:inset 0 0 0 2px var(--chalk-2)}
+.outs{display:inline-flex;gap:6px}
+.outs i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--ink-3)}
 .outs i.on{background:var(--gold);box-shadow:none}
-.board-empty{margin:4px 0 0;color:var(--chalk-2);font-size:1rem}
+.ls{overflow-x:auto}
+table.sb{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;font-family:var(--cond);font-variant-numeric:tabular-nums}
+.sb th,.sb td{text-align:center;font-weight:700;padding:0;font-size:.85rem}
+.sb thead th{color:var(--ink-3);height:20px}
+.sb thead th:first-child{width:2.8em}
+.sb tbody th{text-align:left;font-size:.9rem;letter-spacing:.04em}
+.sb td{background:rgba(255,255,255,.06);border-radius:3px;height:26px}
+.sb td.now{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.sb .tot{color:var(--gold)}
+.nextup{margin-top:auto;padding-top:16px;border-top:1px solid var(--line);display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.nextup svg{width:30px;height:30px;color:var(--ink-3)}
+.nextup p{margin:0;font-size:.95rem;color:var(--ink-2)}
+.nextup p b{display:block;color:#fff;font:700 1.05rem/1.2 var(--cond);letter-spacing:.04em;text-transform:uppercase}
+.empty-note{margin:0;color:var(--ink-3);font-size:.95rem}
 
-/* ---------- light sections ---------- */
-.paper{background:var(--paper);color:var(--ink)}
-.sec .wrap{padding-block:clamp(48px,7vw,84px)}
-.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px 32px;margin-bottom:28px}
-.sec-h h2{margin:0;font-size:clamp(2.2rem,5vw,3.2rem);line-height:1;color:var(--navy)}
+/* ---------- sections ---------- */
+.sec{padding-block:clamp(48px,7vw,84px) 0}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 32px;margin-bottom:22px}
+.sec-h h2{margin:0;font:800 clamp(2rem,4vw,2.8rem)/1 var(--cond);letter-spacing:.02em;text-transform:uppercase}
+.sec-h h2 span{font:400 1.1em/1 var(--script);text-transform:none;color:var(--gold);letter-spacing:0;margin-right:.15em}
 .sec-h p{margin:0;max-width:34em;color:var(--ink-2)}
-
-/* tickets */
-.tickets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:16px}
-.tk{position:relative;display:grid;grid-template-rows:auto 1fr auto;gap:10px;background:#fff;border-radius:12px;padding:20px 20px 18px;min-width:0;
-  box-shadow:0 1px 0 var(--line),0 10px 24px rgba(17,27,46,.06);
-  -webkit-mask:radial-gradient(circle at 0 62%,transparent 11px,#000 12px) left/51% 100% no-repeat,radial-gradient(circle at 100% 62%,transparent 11px,#000 12px) right/51% 100% no-repeat;
-          mask:radial-gradient(circle at 0 62%,transparent 11px,#000 12px) left/51% 100% no-repeat,radial-gradient(circle at 100% 62%,transparent 11px,#000 12px) right/51% 100% no-repeat}
-.tk.tuned{box-shadow:0 0 0 3px var(--gold),0 10px 24px rgba(17,27,46,.08)}
-.tk-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.tk-top .n{font-size:2rem;line-height:1;color:var(--navy)}
-.tk-top .d{font:600 .95rem var(--cond);letter-spacing:.04em;color:var(--ink-2)}
-.tk .m{margin:0;font:600 1.3rem/1.2 var(--cond);letter-spacing:.01em}
-.tk .s{margin:0;font-size:1rem;color:var(--ink-2)}
-.tk .s.live{color:var(--onair);font-weight:600}
-.tk .s.fin b{color:var(--ink)}
-.tk-actions{display:grid;gap:8px;padding-top:12px;border-top:1.5px dashed var(--line)}
-.tk button{min-height:54px;border-radius:999px;border:none;cursor:pointer;font:600 1.1rem var(--cond);letter-spacing:.04em;background:var(--navy);color:#fff}
-.tk button:hover{background:var(--navy-3)}
-.tk button.alt{background:transparent;color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--navy)}
-.tk button.alt:hover{background:rgba(14,30,58,.06)}
-
-/* call log */
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px}
+.game{display:flex;flex-direction:column;gap:12px;padding:20px;border-radius:18px;background:var(--glass);border:1px solid var(--line);min-width:0}
+.game.tuned{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.game .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.game .n{font:800 1.6rem/1 var(--cond);text-transform:uppercase;letter-spacing:.02em}
+.game .d{font:600 .9rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.game .m{margin:0;font:700 1.2rem/1.2 var(--cond);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.game .s{margin:0;font-size:.95rem;color:var(--ink-2)}
+.game .s.live{color:#ff8a6b;font-weight:600}
+.game .reveal{border:none;background:none;color:var(--gold);font:600 .95rem var(--body);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
+.game .go{margin-top:auto;min-height:54px;border-radius:999px;border:none;cursor:pointer;font:700 1.05rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;background:var(--gold);color:#0b1d3a}
+.game .go:hover{background:#ffd35e}
+.game .go.alt{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
 .log{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
-.log li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}
-.log .t{font:600 1rem/1.5 var(--cond);letter-spacing:.04em;color:var(--royal)}
-.log .x{max-width:52em}
-.log .empty{display:block;color:var(--ink-2);padding:16px 0}
-
-/* tribute */
-.tribute .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px);padding-block:clamp(52px,8vw,96px)}
-.tribute h2{margin:0;font-size:clamp(2.8rem,6.5vw,4.6rem);line-height:.95;color:var(--gold)}
-.tribute .yrs{display:block;margin-top:12px;font:600 1.4rem var(--cond);letter-spacing:.06em;color:#c3cde2}
-.tribute p{color:#dbe2f0;max-width:34em}
+.log li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:20px;padding:14px 0;border-bottom:1px solid var(--line)}
+.log .t{font:700 .95rem/1.5 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.log .x{max-width:52em;color:var(--ink-2)}
+.log .empty{grid-column:1/-1;color:var(--ink-3)}
+.two{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px)}
+.two p{margin:0 0 16px;max-width:36em;color:var(--ink-2)}
+.tribute{margin-top:clamp(48px,7vw,84px);background:linear-gradient(180deg,rgba(255,197,47,.08),rgba(255,197,47,0));border-top:1px solid rgba(255,197,47,.3)}
+.tribute .two{padding-block:clamp(44px,6vw,72px)}
+.tribute h2{margin:0;font:400 clamp(3rem,7vw,4.6rem)/.95 var(--script);color:var(--gold)}
+.tribute .yrs{display:block;margin:10px 0 18px;font:700 1.2rem var(--cond);letter-spacing:.1em;color:var(--ink-2)}
+.tribute p{color:#dbe2f0}
+.coda{font-style:italic;color:#c3cde2}
 .tl{list-style:none;margin:0;padding:0}
-.tl li{display:grid;grid-template-columns:5em minmax(0,1fr);gap:20px;padding:16px 0;border-top:1px solid rgba(255,255,255,.14)}
-.tl li:last-child{border-bottom:1px solid rgba(255,255,255,.14)}
-.tl .y{font-size:1.5rem;line-height:1.1;color:var(--gold)}
+.tl li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid var(--line)}
+.tl li:last-child{border-bottom:1px solid var(--line)}
+.tl .y{font:800 1.3rem/1.2 var(--cond);color:var(--gold)}
 .tl .e{color:#e6ebf5}
-.coda{margin-top:22px;font-style:italic;color:#c3cde2}
-
-.history .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px)}
-.history h2{margin:0;font-size:clamp(2.2rem,5vw,3.2rem);line-height:1;color:var(--navy)}
-.history p{margin:0 0 16px;max-width:36em}
-
-footer{color:#9eabc6;font-size:.9rem}
-footer .wrap{padding-block:36px 48px}
+footer{color:var(--ink-3);font-size:.9rem;border-top:1px solid var(--line)}
+footer .wrap{padding-block:32px 48px}
 footer p{max-width:72em;margin:0 0 8px}
 
-/* replay inning jumps, spoiler-free scores */
-.jump{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:18px}
-.jump .lbl{font:600 1rem var(--cond);letter-spacing:.04em;color:#c3cde2;margin-right:4px}
-.jump button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;
-  font:600 1rem var(--cond);letter-spacing:.03em;cursor:pointer}
-.jump button:hover{background:rgba(255,255,255,.08)}
-.jump button[aria-current="true"]{background:var(--gold);border-color:var(--gold);color:var(--navy)}
-.tk .reveal{min-height:0;height:auto;padding:2px 0;border-radius:0;background:none;color:var(--royal);font:600 1rem var(--body);
-  text-decoration:underline;text-underline-offset:3px;box-shadow:none}
-.tk .reveal:hover{background:none;color:var(--navy)}
-
-@media (max-width:900px){
-  .now .wrap,.tribute .wrap,.history .wrap{grid-template-columns:minmax(0,1fr)}
+@media (max-width:980px){
+  .player{grid-template-columns:minmax(0,1fr)}
+  .info{border-left:none;border-top:1px solid var(--line)}
+  .nav{display:none}
+  .top .wrap{justify-content:space-between}
 }
-@media (max-width:520px){
-  .brand span{display:none}
-  .controls .btn.primary{width:100%}
-  .controls #pause{flex:1}
-  .vol{flex:1;justify-content:space-between}
-  .vol .lbl{display:none}
+@media (max-width:640px){
+  .deck{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}
+  .kick,.sit{justify-content:center}
+  .now{width:100%}
+  .controls{justify-content:center}
+  .vol{max-width:none;flex-basis:100%}
+  .meter{display:none}
+  .quote{text-align:left}
+  .chips{justify-content:center}
+  .two{grid-template-columns:minmax(0,1fr)}
   .log li{grid-template-columns:minmax(0,1fr);gap:4px}
-  .sb td{height:38px;font-size:1.2rem}
-  .sb tbody th{font-size:1.05rem}
-  .board{padding:16px 12px 18px}
-  .brand b{font-size:1.35rem}
+  .brand b{font-size:1.6rem}
+  .onair{padding:8px 12px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
+<div class="park" aria-hidden="true"></div>
 
-<div id="stage">
-<header class="top pin">
+<header class="top">
   <div class="wrap g">
-    <div class="brand"><b>Bob's Booth</b><span>Brewers World Series radio</span></div>
-    <span class="air"><i aria-hidden="true"></i><span id="airtext">Off the air</span></span>
+    <a class="brand" href="#listen" aria-label="Bob's Booth, home">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#ffc52f"/><rect x="14" y="7" width="12" height="18" rx="6" fill="#0c1f3f"/><path d="M11 19a9 9 0 0 0 18 0" fill="none" stroke="#0c1f3f" stroke-width="2.6" stroke-linecap="round"/><path d="M20 28v5M15 33h10" stroke="#0c1f3f" stroke-width="2.6" stroke-linecap="round"/></svg>
+      <b>Bob's Booth</b>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#listen" aria-current="true">Listen</a>
+      <a href="#series">Games</a>
+      <a href="#calls">The Call</a>
+      <a href="#brewers">History</a>
+      <a href="#uecker">Tribute</a>
+    </nav>
+    <span class="onair" id="onair"><i aria-hidden="true"></i><span id="onairtext">Off the air</span></span>
   </div>
-  <div class="sleeve" aria-hidden="true"></div>
 </header>
 
 <main>
-  <section class="now pin" aria-label="Now playing">
-    <div class="wrap g">
-      <div>
-        <p class="kick" id="kick"><span class="chip gold">2026 World Series</span></p>
-        <h1 class="title display" id="title">Brewers baseball<small>on the radio, called by Bob</small></h1>
-        <p class="caption idle" id="caption" aria-live="polite">Press Listen to hear Bob live when a game is on, or the latest replay when it isn't. Every word he says appears here in large print.</p>
-        <div class="controls">
-          <button class="btn primary" id="power">
-            <svg id="powericon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8v14.4L19 12z" fill="currentColor"/></svg>
-            <span id="powertext">Listen</span>
-          </button>
-          <button class="btn" id="pause" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>
-            <span>Pause</span>
-          </button>
-          <div class="vol" role="group" aria-label="Volume">
-            <span class="lbl">Volume</span>
-            <button id="quieter" aria-label="Quieter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
-            <output id="volout" aria-live="polite">80%</output>
-            <button id="louder" aria-label="Louder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+  <section class="stage g" id="listen" aria-label="Now playing">
+    <div class="wrap">
+      <div class="player">
+        <div class="deck">
+          <div class="portrait" id="portrait">
+            <svg viewBox="0 0 200 200" role="img" aria-label="A vintage radio microphone">
+              <defs>
+                <radialGradient id="pbg" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#23467f"/><stop offset="1" stop-color="#0b1d3a"/></radialGradient>
+                <linearGradient id="chrome" x1="0" x2="1"><stop offset="0" stop-color="#8f9bb0"/><stop offset=".45" stop-color="#f4f6fa"/><stop offset="1" stop-color="#7d889c"/></linearGradient>
+                <linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#c98f00"/><stop offset=".5" stop-color="#ffd968"/><stop offset="1" stop-color="#c98f00"/></linearGradient>
+              </defs>
+              <rect width="200" height="200" fill="url(#pbg)"/>
+              <g opacity=".22" stroke="#ffc52f" stroke-width="2" fill="none"><path d="M44 70a70 70 0 0 1 0 60"/><path d="M30 58a90 90 0 0 1 0 84"/><path d="M156 70a70 70 0 0 0 0 60"/><path d="M170 58a90 90 0 0 0 0 84"/></g>
+              <rect x="70" y="40" width="60" height="86" rx="30" fill="url(#chrome)"/>
+              <g stroke="#5d687c" stroke-width="2.2" opacity=".75"><path d="M76 62h48M74 72h52M73 82h54M73 92h54M74 102h52M76 112h48"/></g>
+              <rect x="68" y="78" width="64" height="12" rx="4" fill="url(#gold)"/>
+              <path d="M100 126v22" stroke="url(#chrome)" stroke-width="9"/>
+              <path d="M62 150h76" stroke="url(#chrome)" stroke-width="10" stroke-linecap="round"/>
+              <path d="M54 106a46 46 0 0 0 92 0" fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round"/>
+            </svg>
           </div>
+          <div class="now">
+            <p class="kick" id="kick"><span>2026 World Series</span></p>
+            <h1 class="matchup" id="matchup">Brewers baseball</h1>
+            <p class="sub" id="sub"><b>Bob</b> · play-by-play</p>
+            <div class="sit" id="sit" hidden><span class="inn" id="sitinn"></span><span class="sc" id="sitsc"></span></div>
+            <div class="bar" id="bar">
+              <div class="track" id="seekwrap"><label class="sr" for="seek">Position in the game</label><input class="seek" id="seek" type="range" min="0" max="1000" value="0" step="1" disabled></div>
+              <div class="livebar" id="livebar" hidden></div>
+              <div class="times"><span id="elapsed">0:00</span><span id="total">&nbsp;</span></div>
+            </div>
+            <div class="controls">
+              <div class="transport">
+                <button class="skip" id="back" aria-label="Back 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9.5A9.5 9.5 0 1 1 6.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M9.4 4.6v5.4H4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
+                <button class="big" id="play" aria-label="Play"><svg id="playicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg></button>
+                <button class="skip" id="fwd" aria-label="Forward 15 seconds" disabled><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M23 9.5A9.5 9.5 0 1 0 25.5 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M22.6 4.6v5.4H28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="21" text-anchor="middle" font-size="9" font-weight="700" font-family="Barlow Condensed,Arial Narrow,sans-serif" fill="currentColor">15</text></svg></button>
+              </div>
+              <div class="vol">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <label class="sr" for="vol">Volume</label><input class="level" id="vol" type="range" min="0" max="100" value="80">
+              </div>
+              <span class="meter" id="meter" aria-hidden="true" hidden><b></b><b></b><b></b><b></b></span>
+            </div>
+          </div>
+          <div class="quote idle" id="quote" aria-live="polite">
+            <div class="who">Bob, on the call</div>
+            <p id="caption">Press play to hear Bob live when a game is on, or the latest replay when it isn't. Every word he says shows up right here.</p>
+          </div>
+          <div class="chips" id="chips" role="group" aria-label="Jump to an inning" hidden></div>
+          <p class="status" id="status">Looking for Bob's studio&hellip;</p>
         </div>
-        <div class="jump" id="jump" role="group" aria-label="Jump to an inning" hidden></div>
-        <p class="status" id="status">Looking for Bob's studio&hellip;</p>
-      </div>
 
-      <aside class="board" aria-labelledby="sb-h">
-        <div class="board-h"><h2 id="sb-h">SCOREBOARD</h2><span class="inn" id="inn"></span></div>
-        <div class="sbwrap" id="sbwrap"></div>
-        <p class="board-empty" id="sbnote">The board fills in as Bob calls the game, so a replay never gives away the ending.</p>
-        <div class="situ" id="situ" hidden>
-          <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base" id="diamond">
-            <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
-            <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
-            <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
-            <path d="M51 86 H69 V92 L60 98 L51 92 Z" fill="#f2efe4"/>
-          </svg>
-          <div class="facts">
-            <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
-            <div><b>COUNT</b><span id="count"></span></div>
+        <aside class="info" aria-labelledby="info-h">
+          <h2 id="info-h">Game info</h2>
+          <div class="teams" id="teams">
+            <div class="team away"><span class="badge" id="awayab">AWAY</span><span class="nm" id="awaynm">Away<small>&nbsp;</small></span><span class="r" id="awayr"></span></div>
+            <div class="team home"><span class="badge" id="homeab">HOME</span><span class="nm" id="homenm">Home<small>&nbsp;</small></span><span class="r" id="homer"></span></div>
+          </div>
+          <div class="diamondrow" id="situ" hidden>
+            <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base">
+              <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
+              <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
+              <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
+              <path d="M51 86 H69 V92 L60 98 L51 92 Z" fill="#c6d1e6"/>
+            </svg>
+            <div class="facts">
+              <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
+              <div><b>COUNT</b><span id="count"></span></div>
+            </div>
+          </div>
+          <div class="facts people" id="people" hidden>
             <div><b>AT BAT</b><span id="batter"></span></div>
             <div><b>PITCHING</b><span id="pitcher"></span></div>
           </div>
-        </div>
-      </aside>
-    </div>
-  </section>
-
-  <section class="sec paper" aria-labelledby="games-h">
-    <div class="wrap g">
-      <div class="sec-h">
-        <h2 class="display" id="games-h">The Series</h2>
-        <p>On game nights Bob goes on the air 30 minutes before first pitch, and everyone hears the same broadcast. Finished games replay any time, inning by inning.</p>
+          <div class="ls" id="ls"></div>
+          <p class="empty-note" id="sbnote">The board fills in as Bob calls the game, so a replay never gives away the ending.</p>
+          <div class="nextup" id="nextup" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <p id="nexttext"></p>
+          </div>
+        </aside>
       </div>
-      <div class="tickets" id="games"><p>Loading the schedule&hellip;</p></div>
     </div>
   </section>
 
-  <section class="sec paper" aria-labelledby="log-h" style="border-top:1px solid var(--line)">
-    <div class="wrap g">
+  <section class="sec g" id="series" aria-labelledby="games-h">
+    <div class="wrap">
       <div class="sec-h">
-        <h2 class="display" id="log-h">The call so far</h2>
+        <h2 id="games-h"><span>The</span> Series</h2>
+        <p>On game nights Bob goes on the air 30 minutes before first pitch, and everyone hears the same broadcast. Finished games replay any time, from the first pitch or any inning.</p>
+      </div>
+      <div class="games" id="games"><p class="empty-note">Loading the schedule&hellip;</p></div>
+    </div>
+  </section>
+
+  <section class="sec g" id="calls" aria-labelledby="log-h">
+    <div class="wrap">
+      <div class="sec-h">
+        <h2 id="log-h"><span>The</span> Call so far</h2>
         <p>In case you stepped away, Bob's earlier calls are kept here, newest first.</p>
       </div>
-      <ol class="log" id="log"><li><span class="empty">Nothing yet. Press Listen and Bob's calls will collect here.</span></li></ol>
+      <ol class="log" id="log"><li><span class="empty">Nothing yet. Press play and Bob's calls will collect here.</span></li></ol>
     </div>
   </section>
 
-  <section class="sec paper history" aria-labelledby="hist-h" style="border-top:1px solid var(--line)">
-    <div class="wrap g">
-      <h2 class="display" id="hist-h">The Brewers</h2>
+  <section class="sec g" id="brewers" aria-labelledby="hist-h">
+    <div class="wrap two">
+      <div class="sec-h" style="margin:0;align-self:start"><h2 id="hist-h"><span>The</span> Brewers</h2></div>
       <div>
         <p>The club began as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season, playing at County Stadium until 2000. In 1982 "Harvey's Wallbangers" led the majors in home runs and reached the World Series, the "Suds Series," losing to St. Louis in seven games. That team had five future Hall of Famers: Robin Yount, Paul Molitor, Rollie Fingers, Ted Simmons and Don Sutton.</p>
         <p>In 2026 the Brewers won the National League pennant by sweeping the Los Angeles Dodgers four games to none, with Jake Bauers named NLCS MVP. Now they face Tampa Bay for the first championship in team history.</p>
@@ -281,41 +369,39 @@ footer p{max-width:72em;margin:0 0 8px}
     </div>
   </section>
 
-  <section class="tribute pin" aria-labelledby="trib-h">
-    <div class="sleeve" aria-hidden="true"></div>
-    <div class="wrap g">
+  <section class="tribute g" id="uecker" aria-labelledby="trib-h">
+    <div class="wrap two">
       <div>
-        <h2 class="display" id="trib-h">Bob Uecker</h2>
-        <span class="yrs">1934 to 2025</span>
+        <h2 id="trib-h">Bob Uecker</h2>
+        <span class="yrs">1934 TO 2025</span>
         <p>For fifty-four seasons, summer in Milwaukee sounded like Bob Uecker. "Mr. Baseball" called Brewers games on the radio from 1971 through 2024, and every night with him felt like company.</p>
         <p class="coda">He never got to call a Brewers championship. This booth keeps a light on for him.</p>
       </div>
       <ol class="tl">
-        <li><span class="y display">1956</span><span class="e">A Milwaukee kid signs with his hometown Braves.</span></li>
-        <li><span class="y display">1962</span><span class="e">Starts six seasons as a big-league backup catcher with the Braves, Cardinals and Phillies. He liked to say a career highlight was an intentional walk from Sandy Koufax.</span></li>
-        <li><span class="y display">1964</span><span class="e">Wins a World Series ring with the St. Louis Cardinals.</span></li>
-        <li><span class="y display">1971</span><span class="e">Joins the Brewers radio booth, where he stays for the rest of his life.</span></li>
-        <li><span class="y display">1980s</span><span class="e">Johnny Carson calls him "Mr. Baseball." He stars on <i>Mr. Belvedere</i>, sells Miller Lite and plays announcer Harry Doyle in <i>Major League</i>.</span></li>
-        <li><span class="y display">2003</span><span class="e">Receives the Ford C. Frick Award from the Baseball Hall of Fame.</span></li>
-        <li><span class="y display">2025</span><span class="e">Dies on January 16 at age 90. Fans still sit beside his bronze statue in the Uecker Seat.</span></li>
+        <li><span class="y">1956</span><span class="e">A Milwaukee kid signs with his hometown Braves.</span></li>
+        <li><span class="y">1962</span><span class="e">Starts six seasons as a big-league backup catcher with the Braves, Cardinals and Phillies. He liked to say a career highlight was an intentional walk from Sandy Koufax.</span></li>
+        <li><span class="y">1964</span><span class="e">Wins a World Series ring with the St. Louis Cardinals.</span></li>
+        <li><span class="y">1971</span><span class="e">Joins the Brewers radio booth, where he stays for the rest of his life.</span></li>
+        <li><span class="y">1980s</span><span class="e">Johnny Carson calls him "Mr. Baseball." He stars on <i>Mr. Belvedere</i>, sells Miller Lite and plays announcer Harry Doyle in <i>Major League</i>.</span></li>
+        <li><span class="y">2003</span><span class="e">Receives the Ford C. Frick Award from the Baseball Hall of Fame.</span></li>
+        <li><span class="y">2025</span><span class="e">Dies on January 16 at age 90. Fans still sit beside his bronze statue in the Uecker Seat.</span></li>
       </ol>
     </div>
   </section>
 </main>
 
-<footer class="pin"><div class="wrap g">
-  <p>Bob is an AI announcer made for fun. Gemini writes his lines from MLB's public pitch-by-pitch data, and a cloned voice reads them. Bob is not Bob Uecker, and these are not Uecker's words or voice. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
+<footer class="g"><div class="wrap">
+  <p>Bob is an AI announcer made for fun, in the spirit of Brewers radio. AI models write his lines from MLB's public pitch-by-pitch data, and an AI voice speaks them. Bob is not Bob Uecker, and nothing Bob says was said by Uecker. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
   <p>On game nights Bob's studio runs on a free cloud computer and goes on the air 30 minutes before first pitch. Finished games are saved here as replays.</p>
 </div></footer>
-</div>
 
 <script>
 // ---------------------------------------------------------------------------------------------
-// Bob's Booth page. Two ways to listen:
+// Two ways to listen:
 //  * Live: Bob's studio (a Kaggle notebook) broadcasts one shared stream. Every clip has a time on a
 //    single timeline, so everyone hears the same moment, about 15 seconds behind the field.
-//  * Replays: finished games are saved on this site as one MP3 per half inning plus a game.json
-//    timeline, so the captions and scoreboard follow along and listeners can jump to any inning.
+//  * Replays: finished games are saved here as one MP3 per half inning plus a game.json timeline.
+//    The player treats them as one continuous recording: one progress bar, skip 15 seconds, scrub anywhere.
 // When the studio is off, the page shows the schedule and the live score straight from MLB.
 // ---------------------------------------------------------------------------------------------
 const TOPIC = "bobs-booth-mke-4q7v2k";
@@ -326,12 +412,13 @@ const get = (url, ms, opts) => fetch(url, Object.assign({cache:"no-store", signa
 function ord(n){ const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 const timeFmt = t => new Date(t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
 const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
-const ICON_PLAY = '<path d="M7 4.8v14.4L19 12z" fill="currentColor"/>', ICON_STOP = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
+const clock = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+const ICON_PLAY = '<path d="M8 5.2v13.6L19 12z" fill="currentColor"/>', ICON_PAUSE = '<rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor"/>';
+const TEST_STUDIO = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? new URLSearchParams(location.search).get("studio") : null;
 
 let API = null, studio = null, games = [], replays = {};
-const TEST_STUDIO = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? new URLSearchParams(location.search).get("studio") : null;
 let mode = null;            // "live" | "replay" | null
-let listening = false, paused = false, vol = 0.8;
+let playing = false, vol = 0.8;
 let log = [], current = null, revealed = new Set(), gamesSig = "";
 
 // ---------------- finding Bob's studio (its address changes every run; ntfy is the signpost)
@@ -354,7 +441,7 @@ async function findStudio(){
 const players = [new Audio(), new Audio()];
 players.forEach(p => { p.crossOrigin = "anonymous"; p.preload = "auto"; });
 let active = players[0], ctx = null, analyser = null, gain = null, buf = null, lvl = 0;
-const bars = [];
+const bars = [...document.querySelectorAll("#meter b")];
 function initAudio(){
   if (ctx){ ctx.resume(); return; }
   try{
@@ -371,47 +458,54 @@ function meterTick(){
   let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
   const target = Math.min(1, Math.sqrt(s / buf.length) * 6);
   lvl += (target - lvl) * (target > lvl ? .5 : .18);
-  bars.forEach((b, i) => b.style.height = Math.max(18, Math.min(100, lvl * 100 * [.6, 1, .8, .5][i] + 18)) + "%");
+  bars.forEach((b, i) => b.style.height = Math.max(15, Math.min(100, lvl * 100 * [.6, 1, .8, .5][i] + 15)) + "%");
   requestAnimationFrame(meterTick);
 }
 const other = () => players.find(p => p !== active);
 function stopAll(){ players.forEach(p => { p.pause(); p.onended = null; p.ontimeupdate = null; }); }
 
 // ---------------- what's on screen
-function setOnAir(on, text){
-  $("stage").classList.toggle("on", on);
-  $("airtext").textContent = text || (on ? "On the air" : "Off the air");
-  if (on && !bars.length){
-    const m = document.createElement("span"); m.className = "meter"; m.setAttribute("aria-hidden", "true");
-    for (let i = 0; i < 4; i++){ const b = document.createElement("b"); bars.push(b); m.append(b); }
-    document.querySelector(".air").append(m);
-  }
-  const meter = document.querySelector(".meter"); if (meter) meter.hidden = !on;
+function setPlaying(on){
+  playing = on;
+  $("playicon").innerHTML = on ? ICON_PAUSE : ICON_PLAY;
+  $("play").setAttribute("aria-label", on ? "Pause" : "Play");
+  $("meter").hidden = !on;
+  $("portrait").classList.toggle("live", on && mode === "live");
 }
-function setTitle(num, away, home, kind){
-  const kick = $("kick"), title = $("title");
-  kick.innerHTML = '<span class="chip gold">2026 World Series</span>';
-  if (!num){ title.innerHTML = 'Brewers baseball<small>on the radio, called by Bob</small>'; return; }
-  const chip = document.createElement("span");
-  chip.className = "chip" + (kind === "live" ? " live" : ""); chip.textContent = kind === "live" ? "Live" : kind === "score" ? "Live score" : "Replay";
-  kick.append(chip);
-  title.innerHTML = ""; title.append("Game " + num);
-  const sm = document.createElement("small"); sm.textContent = `${short(away)} at ${short(home)}`; title.append(sm);
+function setOnAir(on, text){
+  const rp = on && text === "Replay";
+  $("onair").classList.toggle("on", on && !rp); $("onair").classList.toggle("rp", rp);
+  $("onairtext").textContent = text || (on ? "On the air" : "Off the air");
+}
+function setHeader(g, kind){
+  const kick = $("kick"); kick.replaceChildren();
+  const add = (cls, txt) => { const s = document.createElement("span"); if (cls) s.className = cls; s.textContent = txt; kick.append(s); };
+  if (kind === "live") add("pill live", "LIVE"); else if (kind === "replay") add("pill replay", "REPLAY"); else if (kind === "score") add("pill live", "LIVE SCORE"); else if (kind === "next") add("pill next", "NEXT UP");
+  add("", g && g.num ? `World Series · Game ${g.num}` : "2026 World Series");
+  $("matchup").textContent = g && g.away ? `${short(g.away)} at ${short(g.home)}` : "Brewers baseball";
+}
+function setTeams(g){
+  if (!g || !g.away) return;
+  $("awayab").textContent = (g.awayAb || short(g.away).slice(0, 3)).toUpperCase();
+  $("homeab").textContent = (g.homeAb || short(g.home).slice(0, 3)).toUpperCase();
+  $("awaynm").firstChild.textContent = short(g.away); $("awaynm").querySelector("small").textContent = "Away";
+  $("homenm").firstChild.textContent = short(g.home); $("homenm").querySelector("small").textContent = "Home";
+  if (!boardOn) emptyBoard();
 }
 function tag(b, kind){
   if (kind === "intro" || kind === "pregame") return "Pregame";
   if (kind === "final") return "Final";
-  return b ? `${b.half === "top" ? "Top" : "Bottom"} ${ord(b.inning)}` : "Pregame";
+  return b ? `${b.half === "top" ? "Top" : "Bot"} ${ord(b.inning)}` : "Pregame";
 }
 function showLine(c){
-  if (current && current !== c){ log.unshift(current); log = log.slice(0, 60); renderLog(); }
+  if (current && current !== c && !log.includes(current)){ log.unshift(current); log = log.slice(0, 60); renderLog(); }
   current = c;
-  const cap = $("caption"); cap.classList.remove("idle");
-  cap.innerHTML = '<span class="who">Bob, on the call</span>'; cap.append(c.text);
+  $("quote").classList.remove("idle");
+  $("caption").textContent = c.text;
   if (c.board) renderBoard(c.board);
 }
 function renderLog(){
-  if (!log.length){ $("log").innerHTML = '<li><span class="empty">Nothing yet. Press Listen and Bob\'s calls will collect here.</span></li>'; return; }
+  if (!log.length){ $("log").innerHTML = '<li><span class="empty">Nothing yet. Press play and Bob\'s calls will collect here.</span></li>'; return; }
   $("log").replaceChildren(...log.map(c => {
     const li = document.createElement("li");
     li.innerHTML = '<span class="t"></span><span class="x"></span>';
@@ -420,17 +514,20 @@ function renderLog(){
     return li;
   }));
 }
-function idle(text){ const cap = $("caption"); cap.classList.add("idle"); cap.textContent = text; }
-function setPower(on){ $("powericon").innerHTML = on ? ICON_STOP : ICON_PLAY; $("powertext").textContent = on ? "Stop" : "Listen"; }
+function idle(text){ $("quote").classList.add("idle"); $("caption").textContent = text; }
 
 // ---------------- scoreboard
+let boardOn = false;      // true once a real board (not the empty one) is showing
 function renderBoard(b){
+  boardOn = !b.empty;
+  $("awayr").textContent = b.empty ? "" : b.score.away; $("homer").textContent = b.empty ? "" : b.score.home;
+  if (b.ab){ $("awayab").textContent = b.ab.away; $("homeab").textContent = b.ab.home; }
+  if (b.team){ $("awaynm").firstChild.textContent = short(b.team.away); $("homenm").firstChild.textContent = short(b.team.home); }
   const n = Math.max(9, b.line.away.length, b.line.home.length);
   const t = document.createElement("table"); t.className = "sb";
   const head = t.createTHead().insertRow();
   const corner = document.createElement("th"); corner.innerHTML = '<span class="sr">Team</span>'; head.append(corner);
   for (let i = 1; i <= n; i++){ const th = document.createElement("th"); th.scope = "col"; th.textContent = i; head.append(th); }
-  const gth = document.createElement("th"); gth.className = "gapc"; head.append(gth);
   for (const k of ["R","H"]){ const th = document.createElement("th"); th.scope = "col"; th.className = "tot"; th.textContent = k; head.append(th); }
   const body = t.createTBody();
   for (const side of ["away","home"]){
@@ -439,13 +536,16 @@ function renderBoard(b){
       const td = r.insertCell(); const v = b.line[side][i]; td.textContent = v == null ? "" : v;
       if (b.inning === i + 1 && (b.half === "top") === (side === "away")) td.className = "now";
     }
-    r.insertCell().className = "gap";
     const R = r.insertCell(); R.className = "tot"; R.textContent = b.score[side];
     const H = r.insertCell(); H.className = "tot"; H.textContent = b.hits[side];
   }
-  $("sbwrap").replaceChildren(t);
-  $("situ").hidden = !!b.empty; $("sbnote").hidden = !b.empty;
-  $("inn").textContent = b.empty ? "" : `${b.half === "top" ? "Top" : "Bottom"} of the ${ord(b.inning)}`;
+  $("ls").replaceChildren(t);
+  $("situ").hidden = $("people").hidden = !!b.empty; $("sbnote").hidden = !b.empty; $("sit").hidden = !!b.empty;
+  if (!b.empty){
+    const inn = `${b.half === "top" ? "Top" : "Bottom"} ${ord(b.inning)}`;
+    $("sitinn").textContent = inn;
+    $("sitsc").textContent = `${b.ab.away} ${b.score.away} · ${b.ab.home} ${b.score.home}`;
+  }
   ["b1","b2","b3"].forEach((id, i) => $(id).classList.toggle("on", !!b.bases[i]));
   ["o1","o2","o3"].forEach((id, i) => $(id).classList.toggle("on", i < b.outs));
   $("batter").textContent = b.batter || "";
@@ -453,7 +553,25 @@ function renderBoard(b){
   $("count").textContent = b.balls == null ? "" : `${b.balls} and ${b.strikes}`;
 }
 function emptyBoard(){
-  renderBoard({empty:true, ab:{away:"AWAY", home:"HOME"}, line:{away:[], home:[]}, score:{away:"", home:""}, hits:{away:"", home:""}, inning:0, half:"top", bases:[0,0,0], outs:0});
+  renderBoard({empty:true, ab:{away:$("awayab").textContent, home:$("homeab").textContent}, line:{away:[], home:[]}, score:{away:"", home:""}, hits:{away:"", home:""}, inning:0, half:"top", bases:[0,0,0], outs:0});
+}
+
+// ---------------- the progress bar
+let dragging = false;
+function setSeek(frac, elapsed, total){
+  const p = Math.max(0, Math.min(1, frac || 0));
+  if (!dragging) $("seek").value = Math.round(p * 1000);
+  $("seek").style.setProperty("--p", (p * 100).toFixed(2) + "%");
+  $("elapsed").textContent = elapsed == null ? "" : clock(elapsed);
+  $("total").textContent = total == null ? "" : clock(total);
+}
+function barMode(kind){   // "replay" | "live" | "off"
+  $("bar").hidden = kind === "off";
+  $("seekwrap").hidden = kind === "live"; $("livebar").hidden = kind !== "live";
+  $("seek").disabled = kind !== "replay";
+  $("back").disabled = $("fwd").disabled = kind !== "replay";
+  if (kind === "live"){ $("elapsed").textContent = "LIVE"; $("total").textContent = `About ${Math.round((studio && studio.delay) || 15)} seconds behind the ballpark`; }
+  if (kind === "off") setSeek(0, null, null);
 }
 
 // ---------------- live: one shared timeline
@@ -474,10 +592,10 @@ async function pollStudio(){
 }
 function liveTick(){
   clearTimeout(L.timer);
-  if (mode !== "live" || !listening || paused) return;
+  if (mode !== "live" || !playing) return;
   const now = serverNow();
-  const playingNow = !active.paused && !active.ended && active.dataset.id;
-  if (!playingNow){
+  const busy = !active.paused && !active.ended && active.dataset.id;
+  if (!busy){
     const c = L.clips.find(c => c.id > L.played && c.at + c.dur > now + 0.4);
     if (c){
       const el = other().dataset.id == c.id ? other() : active;
@@ -490,7 +608,7 @@ function liveTick(){
         el.onended = () => { el.dataset.id = ""; liveTick(); };
         el.play().catch(() => {});
         showLine(c);
-        const nxt = L.clips.find(x => x.id > c.id);          // load the next one on the other player
+        const nxt = L.clips.find(x => x.id > c.id);
         if (nxt){ const o = other(); if (o.dataset.id != nxt.id){ o.src = `${API}/${nxt.url}`; o.dataset.id = nxt.id; o.load(); } }
       }
     }
@@ -498,23 +616,24 @@ function liveTick(){
   L.timer = setTimeout(liveTick, 150);
 }
 function startLive(){
-  initAudio(); stopAll(); mode = "live"; listening = true; paused = false; setPower(true);
-  log = []; current = null; renderLog(); $("jump").hidden = true;
-  L.played = 0; players.forEach(p => p.dataset.id = "");
-  const s = studio || {}; const g = s.game || {};
-  setTitle(g.num, g.away, g.home, "live");
+  initAudio(); stopAll(); mode = "live"; setPlaying(true);
+  log = []; current = null; renderLog(); $("chips").hidden = true;
+  L.played = 0; players.forEach(p => { p.dataset.id = ""; p.dataset.src = ""; });
+  const g = (studio && studio.game) || {};
+  setHeader(Object.assign({}, gameByPk(g.pk) || {}, g), "live"); setTeams(gameByPk(g.pk) || g);
+  barMode("live");
   idle("Tuning in to Bob. He'll be with you in a moment.");
-  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
   setOnAir(true);
   liveTick();
+  location.hash === "#listen" || window.scrollTo({top: 0, behavior: "smooth"});
 }
 
-// ---------------- replays: one MP3 per half inning + a timeline
-const R = {game: null, idx: 0, line: -1, base: ""};
+// ---------------- replays: one MP3 per half inning, played as one continuous recording
+const R = {game: null, starts: [], total: 0, idx: 0, line: -1, base: ""};
 const missing = {};
 async function loadReplay(num){
   if (replays[num] && replays[num].meta) return replays[num].meta;
-  if (missing[num] && Date.now() - missing[num] < 300000) return null;     // check again every 5 minutes
+  if (missing[num] && Date.now() - missing[num] < 300000) return null;
   try{
     const r = await get(`replays/game-${num}/game.json`, 10000, {cache:"no-cache"});
     if (!r.ok){ missing[num] = Date.now(); return null; }
@@ -522,77 +641,120 @@ async function loadReplay(num){
     replays[num] = {meta}; return meta;
   }catch(e){ missing[num] = Date.now(); return null; }
 }
-async function startReplay(num, chunk){
+async function startReplay(num, at){
   const meta = await loadReplay(num);
   if (!meta) return;
-  initAudio(); stopAll(); mode = "replay"; listening = true; paused = false; setPower(true);
-  R.game = meta; R.base = `replays/game-${num}/`; R.idx = chunk || 0; R.line = -1;
+  initAudio(); stopAll(); mode = "replay";
+  R.game = meta; R.base = `replays/game-${num}/`; R.starts = []; R.total = 0;
+  meta.chunks.forEach(ch => { R.starts.push(R.total); R.total += ch.dur; });
   log = []; current = null; renderLog(); emptyBoard();
-  setTitle(meta.num, meta.away, meta.home, "replay");
+  const g = gameByPk(meta.pk) || meta;
+  setHeader(Object.assign({}, g, {num: meta.num, away: meta.away, home: meta.home}), "replay"); setTeams(Object.assign({}, g, meta));
   setOnAir(true, "Replay");
-  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
-  renderJump();
-  playChunk();
-  window.scrollTo({top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+  barMode("replay");
+  renderChips();
+  players.forEach(p => { p.dataset.src = ""; p.dataset.id = ""; });
+  setPlaying(true);
+  seekTo(at || 0);
+  if (location.hash !== "#listen") window.scrollTo({top: 0, behavior: "smooth"});
 }
-function playChunk(){
-  const ch = R.game.chunks[R.idx];
-  if (!ch){ idle("That's the end of the replay. Thanks for listening."); listening = false; setPower(false); setOnAir(false); $("pause").hidden = true; return; }
+function chunkAt(t){
+  for (let i = R.game.chunks.length - 1; i >= 0; i--) if (t >= R.starts[i]) return i;
+  return 0;
+}
+function seekTo(t){
+  t = Math.max(0, Math.min(t, R.total - 0.25));
+  const i = chunkAt(t);
+  R.want = t;                                          // where we're headed, until the audio gets there
+  setSeek(t / R.total, t, R.total);
+  loadChunk(i, t - R.starts[i]);
+}
+function loadChunk(i, off){
+  const ch = R.game.chunks[i];
+  if (!ch){ endReplay(); return; }
+  R.idx = i; R.line = -1;
   const want = R.base + ch.file;
   const pre = other();
-  const el = pre.dataset.src === want ? pre : active;
+  if (active.dataset.src !== want && pre.dataset.src === want){ active.pause(); active = pre; }
+  const el = active;
   if (el.dataset.src !== want){ el.src = want; el.dataset.src = want; }
-  active = el; R.line = -1;
-  el.ontimeupdate = () => {
-    const t = el.currentTime; let k = R.line;
-    while (k + 1 < ch.lines.length && ch.lines[k + 1].t <= t + 0.05) k++;
-    if (k !== R.line && k >= 0){ R.line = k; showLine(ch.lines[k]); }
+  other().pause();
+  const go = () => {
+    el.addEventListener("seeked", () => { if (el === active) R.want = null; }, {once:true});
+    try{ el.currentTime = off || 0; }catch(e){ R.want = null; }
+    if (playing) el.play().catch(() => {});
   };
-  el.onended = () => { R.idx++; playChunk(); };
-  el.play().catch(() => {});
-  markJump();
-  const nxt = R.game.chunks[R.idx + 1];               // load the next half inning on the other player
-  if (nxt){ const o = other(); const u = R.base + nxt.file; if (o.dataset.src !== u){ o.src = u; o.dataset.src = u; o.preload = "auto"; o.load(); } }
+  if (el.readyState >= 1) go(); else el.addEventListener("loadedmetadata", go, {once:true});
+  el.ontimeupdate = () => {
+    if (el !== active || el.seeking || R.want != null) return;
+    const t = el.currentTime; let k = -1;
+    for (let j = 0; j < ch.lines.length && ch.lines[j].t <= t + 0.05; j++) k = j;
+    if (k !== R.line){ R.line = k; if (k >= 0) showLine(ch.lines[k]); else if (ch.lines[0] && i > 0) {} }
+    setSeek((R.starts[i] + t) / R.total, R.starts[i] + t, R.total);
+  };
+  el.onended = () => { if (el === active) loadChunk(R.idx + 1, 0); };
+  markChips();
+  const nxt = R.game.chunks[i + 1];                    // load the next half inning on the other player
+  if (nxt){ const o = other(); const u = R.base + nxt.file; if (o.dataset.src !== u){ o.src = u; o.dataset.src = u; o.load(); } }
 }
-function renderJump(){
-  const box = $("jump"); box.replaceChildren(); box.hidden = false;
+function endReplay(){
+  setPlaying(false); setOnAir(false); mode = null;
+  idle("That's the end of the replay. Thanks for listening.");
+  setSeek(1, R.total, R.total);
+}
+function renderChips(){
+  const box = $("chips"); box.replaceChildren(); box.hidden = false;
   const lab = document.createElement("span"); lab.className = "lbl"; lab.textContent = "Jump to"; box.append(lab);
   R.game.chunks.forEach((ch, i) => {
     const b = document.createElement("button"); b.textContent = ch.label.replace("Bottom", "Bot");
-    b.onclick = () => { stopAll(); players.forEach(p => p.dataset.src = ""); R.idx = i; log = []; current = null; renderLog(); playChunk(); };
+    b.onclick = () => { log = []; current = null; renderLog(); if (!playing) setPlaying(true); seekTo(R.starts[i]); };
     box.append(b);
   });
 }
-function markJump(){ [...$("jump").querySelectorAll("button")].forEach((b, i) => b.setAttribute("aria-current", i === R.idx ? "true" : "false")); }
+function markChips(){ [...$("chips").querySelectorAll("button")].forEach((b, i) => b.setAttribute("aria-current", i === R.idx ? "true" : "false")); }
 
 // ---------------- controls
-function stopListening(msg){
-  listening = false; paused = false; stopAll(); setPower(false); $("pause").hidden = true; setOnAir(false);
-  players.forEach(p => { p.dataset.id = ""; p.dataset.src = ""; });
-  idle(msg || "Bob is turned off on this device. Press Listen to hear him again.");
-}
-$("power").onclick = () => {
-  if (listening){ stopListening(); mode = null; return; }
-  if (studio && studio.on) return startLive();
-  const done = games.filter(g => g.state === "Final" && replays[g.num]).pop();
-  if (done) return startReplay(done.num, 0);
-  idle("Bob isn't on the air right now and there's no replay saved yet. Check back at game time.");
-};
-$("pause").onclick = () => {
-  paused = !paused; $("pause").querySelector("span").textContent = paused ? "Resume" : "Pause";
-  if (paused){ active.pause(); clearTimeout(L.timer); return; }
-  if (mode === "live"){ stopAll(); players.forEach(p => p.dataset.id = ""); L.played = 0; liveTick(); }   // live picks up at the live point
+$("play").onclick = () => {
+  initAudio();
+  if (!mode){
+    if (studio && studio.on) return startLive();
+    const done = games.filter(g => g.state === "Final" && replays[g.num]).pop();
+    if (done) return startReplay(done.num, 0);
+    idle("Bob isn't on the air right now and there's no replay saved yet. Check back at game time.");
+    return;
+  }
+  if (playing){
+    setPlaying(false); active.pause(); clearTimeout(L.timer); return;
+  }
+  setPlaying(true);
+  if (mode === "live"){ stopAll(); players.forEach(p => p.dataset.id = ""); L.played = 0; liveTick(); }   // live resumes at the live point
   else active.play().catch(() => {});
 };
+const nowReplay = () => R.want != null ? R.want : R.starts[R.idx] + (active.currentTime || 0);
+$("back").onclick = () => { if (mode === "replay") seekTo(nowReplay() - 15); };
+$("fwd").onclick = () => { if (mode === "replay") seekTo(nowReplay() + 15); };
+$("seek").addEventListener("input", () => {
+  dragging = true;
+  if (mode !== "replay") return;
+  const t = $("seek").value / 1000 * R.total;
+  setSeek($("seek").value / 1000, t, R.total);
+});
+$("seek").addEventListener("change", () => { dragging = false; if (mode === "replay") seekTo($("seek").value / 1000 * R.total); });
 function setVol(v){
-  vol = Math.max(0, Math.min(1, Math.round(v * 10) / 10));
+  vol = Math.max(0, Math.min(1, v));
   if (gain) gain.gain.value = vol; else players.forEach(p => p.volume = vol);
-  $("volout").textContent = Math.round(vol * 100) + "%";
+  $("vol").style.setProperty("--p", Math.round(vol * 100) + "%");
 }
-$("quieter").onclick = () => setVol(vol - .1);
-$("louder").onclick = () => setVol(vol + .1);
+$("vol").addEventListener("input", () => setVol($("vol").value / 100));
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,button,a,textarea")) return;
+  if (e.code === "Space"){ e.preventDefault(); $("play").click(); }
+  if (mode === "replay" && e.code === "ArrowLeft") $("back").click();
+  if (mode === "replay" && e.code === "ArrowRight") $("fwd").click();
+});
 
-// ---------------- the schedule (straight from MLB) and the ticket cards
+// ---------------- the schedule (straight from MLB) and the game cards
+const gameByPk = pk => games.find(g => g.pk === pk);
 async function mlbGames(){
   const j = await (await get(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`)).json();
   const out = [];
@@ -615,47 +777,57 @@ async function mlbLive(g){
       hits: {away: ls.teams.away.hits || 0, home: ls.teams.home.hits || 0}, inning: ls.currentInning || 1,
       half: (ls.inningHalf || "Top").toLowerCase() === "top" ? "top" : "bottom", bases: [o.first ? 1 : 0, o.second ? 1 : 0, o.third ? 1 : 0],
       outs: ls.outs || 0, balls: ls.balls, strikes: ls.strikes, batter: o.batter ? o.batter.fullName : "", pitcher: d.pitcher ? d.pitcher.fullName : ""});
-    setTitle(g.num, g.away, g.home, "score");
+    setHeader(g, "score"); setTeams(g);
   }catch(e){}
+}
+function renderNext(){
+  const onNow = studio && studio.on && studio.game ? studio.game.pk : 0;
+  const nxt = games.find(g => g.state === "Preview" && g.pk !== onNow);
+  $("nextup").hidden = !nxt;
+  if (!nxt) return;
+  const fp = new Date(nxt.date).getTime();
+  $("nexttext").innerHTML = "<b></b>";
+  $("nexttext").querySelector("b").textContent = `Next up: Game ${nxt.num}`;
+  $("nexttext").append(`${short(nxt.away)} at ${short(nxt.home)} · ${dateFmt(nxt.date)}, ${timeFmt(fp)}. Bob on the air at ${timeFmt(fp - 30 * 60000)}.`);
 }
 function renderGames(){
   const liveKey = studio && studio.on && studio.game ? studio.game.pk : 0;
   const sig = JSON.stringify([games.map(g => [g.pk, g.state, g.inning, !!replays[g.num]]), liveKey, mode, R.game && R.game.num, [...revealed], !!(studio && studio.on)]);
   if (sig === gamesSig) return;
   gamesSig = sig;
+  renderNext();
   const box = $("games"); box.replaceChildren();
-  if (!games.length){ box.innerHTML = "<p>No Brewers World Series games are listed yet.</p>"; return; }
-  const liveGame = studio && studio.on && studio.game ? studio.game.pk : null;
+  if (!games.length){ box.innerHTML = '<p class="empty-note">No Brewers World Series games are listed yet.</p>'; return; }
   games.forEach(g => {
-    const live = g.state === "Live" || g.pk === liveGame, fin = g.state === "Final" && g.pk !== liveGame;
-    const tk = document.createElement("article");
-    tk.className = "tk" + ((mode === "live" && live) || (mode === "replay" && R.game && R.game.num === g.num) ? " tuned" : "");
-    tk.innerHTML = '<div><div class="tk-top"><span class="n display"></span><span class="d"></span></div></div><div><p class="m"></p><p class="s"></p></div><div class="tk-actions"></div>';
-    tk.querySelector(".n").textContent = "Game " + g.num;
-    tk.querySelector(".d").textContent = dateFmt(g.date);
-    tk.querySelector(".m").textContent = `${short(g.away)} at ${short(g.home)}`;
-    const s = tk.querySelector(".s"), act = tk.querySelector(".tk-actions");
-    const btn = (label, fn, alt) => { const b = document.createElement("button"); b.textContent = label; if (alt) b.className = "alt"; b.onclick = fn; act.append(b); return b; };
+    const live = g.state === "Live" || g.pk === liveKey, fin = g.state === "Final" && g.pk !== liveKey;
+    const card = document.createElement("article");
+    card.className = "game" + ((mode === "live" && live) || (mode === "replay" && R.game && R.game.num === g.num) ? " tuned" : "");
+    card.innerHTML = '<div class="row"><span class="n"></span><span class="d"></span></div><p class="m"></p><p class="s"></p>';
+    card.querySelector(".n").textContent = "Game " + g.num;
+    card.querySelector(".d").textContent = dateFmt(g.date);
+    card.querySelector(".m").textContent = `${short(g.away)} at ${short(g.home)}`;
+    const s = card.querySelector(".s");
+    const btn = (label, fn, alt) => { const b = document.createElement("button"); b.className = "go" + (alt ? " alt" : ""); b.textContent = label; b.onclick = fn; card.append(b); };
     if (live){
       s.className = "s live"; s.textContent = g.state === "Live" ? "On now" + (g.inning ? ", " + g.inning.toLowerCase() : "") : "Bob is on the air";
       if (studio && studio.on) btn("Listen live", startLive);
-      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's studio is off, so the board above shows the live score."; act.append(n); }
+      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's studio is off, so the board above shows the live score."; card.append(n); }
     } else if (fin){
-      s.className = "s fin"; s.textContent = "Final. ";
+      s.textContent = "Final. ";
       if (revealed.has(g.num)) s.append(Object.assign(document.createElement("b"), {textContent: `${short(g.away)} ${g.awayRuns}, ${short(g.home)} ${g.homeRuns}`}));
       else {
         const show = document.createElement("button"); show.className = "reveal"; show.textContent = "Show score";
         show.setAttribute("aria-label", `Show the final score of Game ${g.num}`);
-        show.onclick = () => { revealed.add(g.num); renderGames(); };
+        show.onclick = () => { revealed.add(g.num); gamesSig = ""; renderGames(); };
         s.append(show);
       }
       if (replays[g.num]) btn("Play the replay", () => startReplay(g.num, 0));
-      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's replay of this game is coming soon."; act.append(n); }
+      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's replay of this game is on its way."; card.append(n); }
     } else {
       const fp = new Date(g.date).getTime();
       s.textContent = `First pitch ${timeFmt(fp)}. Bob goes on the air at ${timeFmt(fp - 30 * 60000)}.`;
     }
-    box.append(tk);
+    box.append(card);
   });
 }
 
@@ -672,39 +844,42 @@ async function loop(){
   const ok = API ? await pollStudio() : false;
   if (API && !ok){ API = null; studio = null; }
   const s = studio;
-  if (mode === "live" && listening){
-    if (!s || !s.on){ setOnAir(false); $("status").textContent = "Lost Bob's signal. Trying again in a moment; the live score is below."; }
-    else { setOnAir(true); $("status").textContent = "You're listening live, about " + Math.round(s.delay || 15) + " seconds behind the ballpark. Bob's words appear above as he speaks."; }
-  } else if (mode === "replay" && listening){
-    $("status").textContent = `Replay of Game ${R.game.num}. Use the inning buttons to jump around.`;
+  if (mode === "live"){
+    if (!s || !s.on){ setOnAir(false, "Signal lost"); $("status").textContent = "Lost Bob's signal. Trying again in a moment."; }
+    else { setOnAir(true); $("status").textContent = "You're listening live. Bob's words appear above as he speaks."; }
+  } else if (mode === "replay"){
+    $("status").textContent = `Replay of Game ${R.game.num}. Drag the bar, skip 15 seconds, or jump to an inning.`;
   } else if (s && s.on){
-    $("stage").classList.add("on"); $("airtext").textContent = "On the air";
-    const g = s.game || {}; setTitle(g.num, g.away, g.home, "live");
+    setOnAir(true);
+    const g = s.game || {}; setHeader(Object.assign({}, gameByPk(g.pk) || {}, g), "live"); setTeams(gameByPk(g.pk) || g);
     if (s.board) renderBoard(s.board);
-    $("status").textContent = "Bob is on the air. Press Listen to tune in.";
+    barMode("live");
+    $("status").textContent = "Bob is on the air. Press play to tune in.";
   } else {
     setOnAir(false);
     const liveG = games.find(g => g.state === "Live");
+    const nxt = games.find(g => g.state !== "Final");
     if (s && !s.on){
       const m = /on the air at (\S+)/.exec(s.status || "");
+      setOnAir(false, "Warming up");
       $("status").textContent = m ? `Bob's studio is warming up. He goes on the air at ${timeFmt(m[1])}.` : "Bob's studio is warming up.";
     } else if (liveG){
       $("status").textContent = "Bob's studio is off right now, so the board shows the live score straight from MLB.";
     } else {
-      const nxt = games.find(g => g.state !== "Final");
-      $("status").textContent = nxt ? `Bob is off the air. Next broadcast: Game ${nxt.num}, ${dateFmt(nxt.date)} at ${timeFmt(new Date(nxt.date).getTime() - 30 * 60000)}. Replays of finished games play any time.`
+      $("status").textContent = nxt ? `Bob is off the air until ${timeFmt(new Date(nxt.date).getTime() - 30 * 60000)} on ${dateFmt(nxt.date)}. Replays of finished games play any time.`
                                     : "Bob is off the air. Replays of finished games play any time.";
     }
-    if (liveG && !listening) await mlbLive(liveG);
+    if (liveG) await mlbLive(liveG);
+    else if (nxt && !current){ setHeader(nxt, "next"); setTeams(nxt); }
+    barMode("off");
   }
   renderGames();
-  setTimeout(loop, mode === "live" && listening ? 1500 : 3000);
+  setTimeout(loop, mode === "live" ? 1500 : 3000);
 }
 
-if (new URLSearchParams(location.search).has("auto")) document.addEventListener("click", () => $("power").click(), {once:true});
+setVol(0.8);
 emptyBoard();
 loop();
 </script>
-
 </body>
 </html>
