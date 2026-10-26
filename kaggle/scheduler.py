@@ -12,7 +12,10 @@ from datetime import datetime
 KERNEL = "joshstutting/bobs-booth-studio"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 START_EARLY = 70 * 60           # start the studio this long before first pitch (on the air at 30 minutes)
-ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower()
+ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower().strip()
+GAMES = ""                       # "render:1,2" renders only those games
+if ":" in ACTION:
+    ACTION, GAMES = ACTION.split(":", 1)
 
 
 def log(*a):
@@ -58,7 +61,7 @@ def have_replay(num):
         return False
 
 
-def start(mode="live"):
+def start(mode="live", games=""):
     """Pushing the notebook starts a new background run of it. mode: live, test or render."""
     log(f"starting Bob's studio on Kaggle ({mode})")
     src = os.path.join(ROOT, "kaggle", "kernel")
@@ -74,6 +77,9 @@ def start(mode="live"):
         src = [l.replace("/bobs-booth/main/kaggle/studio.py", f"/bobs-booth/{sha}/kaggle/studio.py") for l in src]
     # Kaggle doesn't hand notebook secrets to runs started through its API, so the Gemini key (a GitHub secret)
     # rides along inside this private notebook's run instead. It is never printed.
+    if games:
+        at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
+        src.insert(at, f"os.environ.setdefault(\"BOB_RENDER\", {json.dumps(games)})\n")
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if key:
         at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
@@ -175,7 +181,7 @@ def main():
         else:
             log("no game within the next 70 minutes")
     if ACTION in ("test", "render") and not running:
-        start(ACTION)
+        start(ACTION, GAMES)
         return
     if ACTION in ("auto", "collect") and not running:
         missing = [g for g in gs if g["state"] == "Final" and not have_replay(g["num"])]
