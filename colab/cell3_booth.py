@@ -1,0 +1,1002 @@
+# 3) Bob's Booth: pick a Brewers World Series game -> MLB pitch-by-pitch data -> Gemini writes Bob's call -> Bob's voice -> public player
+import json, re, threading, time, subprocess, urllib.request, os, random, numpy as np, soundfile as sf
+from flask import Flask, jsonify, send_file, request
+
+def bob_line(*a, **k): raise SystemExit   # stops an older Bob worker thread if one is still running in this session
+try: tun.terminate()                        # close the older tunnel too
+except NameError: pass
+import socket; _s = socket.socket(); _s.bind(("", 0)); PORT = _s.getsockname()[1]; _s.close()   # fresh free port each run
+RUN = time.time()   # newer runs retire older Bob workers
+SEASON, BREWERS, SR = 2026, 158, 24000
+POLL_S = 8      # live games: check MLB for new plays this often
+LEAD_S = 45     # replays: keep about this many seconds of Bob ready ahead of the listener, so there is no dead air
+TOPIC = "bobs-booth-mke-4q7v2k"
+os.makedirs("/content/clips", exist_ok=True)
+lock = threading.Lock()
+S = {"gen": 0, "pk": None, "mode": None, "label": "Off the air", "clips": [], "n": 0, "audio": 0.0, "t0": None, "last_talk": 0}
+
+try:
+    from google.colab import ai
+    def gemini(p): return ai.generate_text(p).strip()
+except Exception:
+    def gemini(p): raise RuntimeError("Gemini unavailable")
+
+def getj(url):
+    with urllib.request.urlopen(url, timeout=20) as r: return json.load(r)
+def feed(pk): return getj(f"https://statsapi.mlb.com/api/v1.1/game/{pk}/feed/live")
+
+_games = {"t": 0, "data": []}
+def series_games():
+    if time.time() - _games["t"] < 30: return _games["data"]
+    out = []
+    try:
+        j = getj(f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId={BREWERS}&gameType=W&season={SEASON}&hydrate=linescore")
+        for d in j.get("dates", []):
+            for g in d["games"]:
+                a, h = g["teams"]["away"], g["teams"]["home"]
+                ls = g.get("linescore", {})
+                out.append({"pk": g["gamePk"], "num": g.get("seriesGameNumber") or len(out) + 1,
+                    "date": g["gameDate"], "state": g["status"]["abstractGameState"], "detail": g["status"]["detailedState"],
+                    "away": a["team"]["name"], "home": h["team"]["name"],
+                    "awayRuns": a.get("score"), "homeRuns": h.get("score"),
+                    "inning": (ls.get("inningHalf", "") + " " + str(ls.get("currentInningOrdinal", ""))).strip()})
+        _games.update(t=time.time(), data=out)
+    except Exception as e:
+        print("schedule error:", e)
+    return _games["data"]
+def series_num(g): return next((x["num"] for x in series_games() if x["pk"] == g.get("gamePk")), "")
+
+# ---------- what Bob knows ----------
+FACTS = [   # checked Brewers history Bob can drop between innings, each used at most once per game
+    "The Brewers began life as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season.",
+    "The 1982 Brewers, nicknamed Harvey's Wallbangers after manager Harvey Kuenn, led the majors in home runs.",
+    "The 1982 World Series against St. Louis was called the Suds Series, and Milwaukee lost it in seven games.",
+    "Robin Yount won two MVP awards, one as a shortstop in 1982 and one as a center fielder in 1989.",
+    "Paul Molitor put together a thirty-nine game hitting streak in 1987.",
+    "Hank Aaron finished his career in Milwaukee, playing his last two seasons for the Brewers in 1975 and 1976.",
+    "The Brewers switched from the American League to the National League in 1998.",
+    "American Family Field opened in 2001 as Miller Park, with a fan-shaped retractable roof.",
+    "Prince Fielder hit fifty home runs for Milwaukee in 2007.",
+    "Christian Yelich won the National League MVP award in 2018.",
+    "The Racing Sausages run at Brewers home games, a Milwaukee tradition since the 1990s.",
+    "Before the Brewers, Milwaukee had the Braves, who won the 1957 World Series.",
+    "The Tampa Bay Rays started play in 1998 as the Devil Rays and reached the World Series in 2008 and 2020.",
+    "This is the Brewers' first World Series since 1982, and they are chasing the first championship in team history.",
+]
+STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
+          "Keep it brisk and punchy.", "Let it breathe a little: warm and unhurried.",
+          "Work in one dry, self-deprecating joke about yourself.", "Use a vivid verb for the pitch or the contact.",
+          "Mention the score or the runners naturally.", "Sound like you are leaning toward the microphone."]
+HITS = {"single", "double", "triple", "home_run"}
+NOT_AB = {"walk", "intent_walk", "hit_by_pitch", "sac_fly", "sac_bunt", "catcher_interf", "sac_fly_double_play", "sac_bunt_double_play"}
+BOB = """You are Bob, the longtime radio play-by-play voice of the Milwaukee Brewers, calling the World Series for folks listening at home.
+How Bob sounds:
+- Conversational, like a friend on the porch with a radio. Warm, dry, unhurried. Never a shouting TV voice.
+- Routine plays get a short, understated call, sometimes with a wry little aside.
+- Big moments build: the windup, the swing, the ball in flight, stretch one word as it carries, then let it land, then give the score.
+- Paint the picture for someone who cannot see it: where the ball went, who ran, who made the play.
+- Self-deprecating humor about Bob's own made-up playing days as a forgettable backup catcher in the low minors: splinters from the bench, a batting average nobody should repeat, managers who forgot his name.
+- Folksy, old-fashioned phrasing. Talks to the listener directly now and then.
+- Never repeats himself: vary sentence openings, verbs, and jokes.
+Rules: use ONLY the game facts you are given; never invent stats, names, injuries, weather, crowd size or events about real people.
+The only made-up material allowed is Bob's own harmless tall tales about himself. Do not use any real broadcaster's catchphrases.
+Keep it clean and family-friendly, like a broadcast grandparents and kids enjoy together. Never use words or phrasing that could read as a double meaning;
+prefer plain baseball verbs such as throws, deals, fires, delivers, swings, lines, lifts, grounds, rolls.
+Spell out all numbers as words. Plain spoken text only: no emojis, stage directions, quotation marks, lists or markdown."""
+
+RISKY = re.compile(r"\b(blow|blows|blew|blown|pump|pumps|pumped|pumping|stroke|stroked|strokes|wood|sticks it|slides it in|hard one|climax|thrust|erect|shaft|nuts)\b", re.I)
+
+STORY = ("It is a quiet stretch between plays. Kill a little time the way a veteran radio man does: one short tall tale about your own "
+         "forgettable playing days, or a gentle remark about life in the booth, or a small observation about the game situation in the facts. "
+         "Then come right back to the game by naming the next batter. Two to four sentences, at most sixty words.")
+
+def clean(t): return re.sub(r"\s+", " ", re.sub(r"[*_#\"]", "", t)).strip()
+def ordinal(n): return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+def bases_text(b):
+    names = [n for n, on in zip(("first", "second", "third"), b) if on]
+    return "bases empty" if not names else ("bases loaded" if len(names) == 3 else "runners on " + " and ".join(names))
+
+def ask(task, facts, mem, fallback):
+    recent = ("Your last lines on the air. Do NOT reuse their openings, phrases or jokes:\n" + "\n".join("- " + x for x in mem[-6:]) + "\n\n") if mem else ""
+    p = f"{BOB}\n\n{recent}Style for this one: {random.choice(STYLES)}\n\nTask: {task}\n\nFacts:\n{facts}"
+    try:
+        t = clean(gemini(p))
+        if t and RISKY.search(t):   # one rewrite if a line could read the wrong way
+            t = clean(gemini(p + "\n\nRewrite this line with plainer, family-friendly wording and no possible double meaning: " + t))
+        if t and not RISKY.search(t): return t
+    except Exception as e: print("Gemini error:", e)
+    return fallback
+
+def bio(g, pid):
+    p = g["gameData"]["players"].get(f"ID{pid}", {})
+    bits = [p.get("fullName", "")]
+    if p.get("currentAge"): bits.append(f"age {p['currentAge']}")
+    place = ", ".join(x for x in (p.get("birthCity"), p.get("birthStateProvince") or p.get("birthCountry")) if x)
+    if place: bits.append("born in " + place)
+    if p.get("primaryPosition", {}).get("name"): bits.append(p["primaryPosition"]["name"].lower())
+    if p.get("height"): bits.append(p["height"].replace("' ", " foot ").replace('"', ""))
+    if p.get("mlbDebutDate"): bits.append("big-league debut in " + p["mlbDebutDate"][:4])
+    if p.get("nickName"): bits.append("nickname " + p["nickName"])
+    return ", ".join(b for b in bits if b)
+
+def pitch_story(p):
+    out = []
+    for e in p.get("playEvents", []):
+        d = e.get("details", {})
+        if e.get("isPitch"):
+            spd = e.get("pitchData", {}).get("startSpeed"); c = e.get("count", {})
+            out.append(f"{d.get('type', {}).get('description', 'pitch')}{f' {round(spd)} mph' if spd else ''}, {d.get('description', '').lower()} (count now {c.get('balls')}-{c.get('strikes')})")
+        elif e.get("type") == "action" and d.get("event") not in (None, "Game Advisory"):
+            out.append("Between pitches: " + d.get("description", ""))
+    hd = next((e["hitData"] for e in p.get("playEvents", []) if e.get("hitData")), None)
+    if hd:
+        bits = [f"off the bat at {round(hd['launchSpeed'])} mph" if hd.get("launchSpeed") else "",
+                f"traveled {round(hd['totalDistance'])} feet" if hd.get("totalDistance") else "",
+                hd.get("trajectory", "").replace("_", " ")]
+        out.append("Contact: " + ", ".join(b for b in bits if b))
+    return out
+
+class Box:
+    """Running scoreboard built play by play, so replays never reveal what has not happened yet."""
+    def __init__(s, g):
+        t = g["gameData"]["teams"]
+        s.ab = {k: t[k]["abbreviation"] for k in ("away", "home")}
+        s.team = {k: t[k].get("teamName", t[k]["name"]) for k in ("away", "home")}
+        s.line = {"away": [], "home": []}; s.hits = {"away": 0, "home": 0}; s.score = {"away": 0, "home": 0}
+        s.cur = None; s.start = dict(s.score); s.half_hits = 0; s.outs = 0; s.bases = [0, 0, 0]
+        s.bat = {}; s.pc = {}; s.inning = 1; s.half = "top"; s.batter = ""; s.pitcher = ""
+    @staticmethod
+    def side(half): return "away" if half == "top" else "home"
+    def apply(s, p):
+        a, r, m = p["about"], p["result"], p.get("matchup", {})
+        half, inn = a["halfInning"], a["inning"]; side = s.side(half)
+        if (inn, half) != s.cur:
+            s.cur = (inn, half); s.outs = 0; s.bases = [0, 0, 0]; s.start = dict(s.score); s.half_hits = 0
+            while len(s.line[side]) < inn: s.line[side].append(None)
+            s.line[side][inn - 1] = 0
+        bid, pid = m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")
+        before = {"outs": s.outs, "bases": list(s.bases), "score": dict(s.score),
+                  "bat": s.bat.get(bid, (0, 0, 0)), "pc": s.pc.get(pid, 0)}
+        s.score = {"away": r.get("awayScore", s.score["away"]), "home": r.get("homeScore", s.score["home"])}
+        s.line[side][inn - 1] = s.score[side] - s.start[side]
+        hit = r.get("eventType") in HITS
+        if hit: s.hits[side] += 1; s.half_hits += 1
+        h, ab, pa = before["bat"]; s.bat[bid] = (h + hit, ab + (r.get("eventType") not in NOT_AB), pa + 1)
+        s.pc[pid] = before["pc"] + sum(1 for e in p.get("playEvents", []) if e.get("isPitch"))
+        s.outs = p.get("count", {}).get("outs", s.outs)
+        s.bases = [0, 0, 0] if s.outs >= 3 else [1 if m.get(k) else 0 for k in ("postOnFirst", "postOnSecond", "postOnThird")]
+        s.inning, s.half = inn, half
+        s.batter, s.pitcher = m.get("batter", {}).get("fullName", ""), m.get("pitcher", {}).get("fullName", "")
+        return before
+    def sc(s, score=None):
+        score = score or s.score
+        return f"{s.team['away']} {score['away']}, {s.team['home']} {score['home']}"
+    def board(s):
+        return {"ab": s.ab, "team": s.team, "line": s.line, "hits": s.hits, "score": s.score, "outs": s.outs, "bases": s.bases,
+                "inning": s.inning, "half": s.half, "batter": s.batter, "pitcher": s.pitcher}
+
+def play_facts(p, g, box, before, seen):
+    a, r, m = p["about"], p["result"], p.get("matchup", {})
+    bid, pid = m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")
+    h, ab, pa = before["bat"]
+    today = "first trip to the plate today" if pa == 0 else f"{h} for {ab} so far today"
+    f = [f"{a['halfInning'].title()} of the {ordinal(a['inning'])}. Before the play: {before['outs']} out, {bases_text(before['bases'])}, score {box.sc(before['score'])}.",
+         f"Batter: {m.get('batter', {}).get('fullName')} of the {box.team[box.side(a['halfInning'])]}, bats {m.get('batSide', {}).get('description', '').lower()}, {today}.",
+         f"Pitcher: {m.get('pitcher', {}).get('fullName')}, throws {m.get('pitchHand', {}).get('description', '').lower()}, {before['pc']} pitches so far tonight.",
+         "Pitch by pitch: " + "; ".join(pitch_story(p)),
+         f"Result: {r.get('description', '')}",
+         f"After the play: {box.outs} out, {bases_text(box.bases)}, score {box.sc()}."]
+    if r.get("rbi"): f.append(f"Runs batted in on the play: {r['rbi']}.")
+    for who in (bid, pid):   # a little background the first time Bob sees someone, now and then
+        if who and who not in seen and random.random() < 0.6:
+            seen.add(who); f.append("Background you may use one detail from: " + bio(g, who))
+    return "\n".join(f)
+
+def big_moment(p, before, box):
+    et = p["result"].get("eventType", "")
+    if et in ("home_run", "triple", "triple_play") or p["about"].get("isScoringPlay"): return True
+    if et in ("grounded_into_double_play", "double_play", "strikeout_double_play"): return True
+    risp = before["bases"][1] or before["bases"][2]
+    if risp and et in ("single", "double"): return True
+    if risp and before["outs"] == 2 and box.outs >= 3: return True     # a jam escaped
+    return False
+BIG = (" This is a big moment. Write it in two parts separated by a single | character. Before the |: calm and conversational, "
+       "the setup and the key pitches. After the |: excited, the result and the immediate reaction, one or two short sentences.")
+
+CATCHUP = ("Several plays happened while you were talking. Catch listeners up quickly and smoothly in two or three sentences, "
+           "most important play first, then the score and the situation now. At most fifty-five words.")
+LIVE_CALL = ("Call this play like live radio, a little tighter than usual because the game is moving: the key pitch or two, the result, "
+             "and a quick reaction. Two or three sentences, at most fifty words.")
+CALL = ("Call this plate appearance like live radio. Walk listeners through two or three of the key pitches (not every one), "
+        "then the result with energy that fits how big it is, then one short reaction. Three or four sentences, at most seventy words. "
+        "A routine out gets a brisk call; a hit, run or strikeout gets more.")
+
+# ---------- voice ----------
+def tidy(w):
+    w = w.cpu().numpy() if hasattr(w, "cpu") else np.asarray(w)
+    w = w.astype(np.float32).squeeze()
+    if w.size and np.abs(w).max() > 0:
+        thr = 0.03 * float(np.abs(w).max()); idx = np.where(np.abs(w) > thr)[0]
+        w = w[max(0, idx[0] - int(.05 * SR)): idx[-1] + int(.12 * SR)]
+    return w
+def words(t): return re.sub(r"[^a-z' ]", " ", t.lower()).split()
+def leak_guard(w, text):
+    """If the clone starts with a stray word that isn't in the line (like "here"), cut it off."""
+    try:
+        out = model._asr_pipe({"array": w, "sampling_rate": SR}, return_timestamps="word")
+        chunks = out.get("chunks") or []
+        heard = [(words(c["text"]) or [""])[0] for c in chunks[:4]]
+        want = words(text)[:2]
+        if not heard or not want or heard[0] == want[0]: return w
+        for k in range(1, len(heard)):
+            if heard[k] == want[0] and (len(want) < 2 or k + 1 >= len(heard) or heard[k + 1] == want[1]):
+                start = chunks[k]["timestamp"][0]
+                if start:
+                    print("  trimmed stray audio:", " ".join(heard[:k]))
+                    return w[max(0, int((start - .06) * SR)):]
+    except Exception as e:
+        print("leak guard skipped:", e)
+    return w
+def say(text, hot=False):
+    prompt = bob_hot if hot and "bob_hot" in globals() else bob
+    return leak_guard(tidy(model.generate(text=text, voice_clone_prompt=prompt, language="English")[0]), text)
+def voice(text, hot=False):
+    """Calm voice for everything; on a big moment the setup stays calm and the payoff (after the |) is excited."""
+    parts = [t.strip() for t in text.split("|") if t.strip()]
+    if hot and len(parts) == 1:
+        s = re.split(r"(?<=[.!?])\s+", parts[0]); parts = [" ".join(s[:-1]), s[-1]] if len(s) > 1 else parts
+    gap, out = np.zeros(int(.15 * SR), np.float32), []
+    for i, t in enumerate(parts):
+        out += [say(t, hot and i == len(parts) - 1), gap]
+    return np.concatenate(out + [np.zeros(int(.1 * SR), np.float32)])
+
+def speak(text, gen, box, kind, mem, hot=False):
+    if not text: return False
+    wav = voice(text, hot)
+    text = re.sub(r"\s*\|\s*", " ", text).strip()
+    with lock:
+        if gen != S["gen"]: return False          # listener switched games while Bob was talking
+        S["n"] += 1; n = S["n"]
+        sf.write(f"/content/clips/{n}.wav", wav, SR)
+        S["clips"].append({"id": n, "text": text, "kind": kind, "board": box.board() if box else None})
+        S["clips"] = S["clips"][-300:]
+        if S["t0"] is None: S["t0"] = time.time()
+        S["audio"] += len(wav) / SR
+    mem.append(text); del mem[:-8]
+    S["last_talk"] = time.time()
+    print(f"[{n}] {text}"); return True
+
+def pace(gen):   # replays: generate ahead, but only about LEAD_S seconds ahead of real time
+    while S["gen"] == gen and S["t0"] and S["audio"] - (time.time() - S["t0"]) > LEAD_S: time.sleep(1)
+
+# ---------- the broadcast ----------
+def series_so_far(g):
+    num = series_num(g)
+    done = [x for x in series_games() if x["state"] == "Final" and isinstance(num, int) and x["num"] < num]
+    if not done: return "This is the first game of the series."
+    mil = sum(1 for x in done if (x["homeRuns"] > x["awayRuns"]) == ("Brewers" in x["home"]))
+    return f"Series so far before this game: Brewers {mil} wins, Rays {len(done) - mil} wins. " + " ".join(
+        f"Game {x['num']}: {x['away']} {x['awayRuns']}, {x['home']} {x['homeRuns']}." for x in done)
+
+def intro(g, mode, box, mem):
+    gd = g["gameData"]; t = gd["teams"]; pp = gd.get("probablePitchers", {})
+    f = [f"World Series Game {series_num(g)}: {t['away']['name']} at {t['home']['name']}, {gd.get('venue', {}).get('name', '')}.",
+         series_so_far(g),
+         "Starting pitchers: " + ", ".join(f"{pp[k]['fullName']} for the {box.team[k]}" for k in ("away", "home") if pp.get(k))]
+    if mode == "live": f.append(f"Right now: {box.half} of the {ordinal(box.inning)}, {box.outs} out, {bases_text(box.bases)}, score {box.sc()}, {box.hits['away']} hits for the {box.team['away']} and {box.hits['home']} for the {box.team['home']}.")
+    task = {"replay": "Open the broadcast. You are re-calling this game from the first pitch for folks listening later, so do not hint at how it ends. Set the scene, the series, and the starting pitchers.",
+            "live": "Open the broadcast. You are joining this game live; welcome listeners and catch them up on the game so far.",
+            "wait": "The game has not started; welcome listeners, set up the matchup and the starting pitchers, and say you will be back at first pitch."}[mode]
+    return ask(task + " Four or five sentences, at most ninety words.", "\n".join(f), mem,
+               f"Hello everybody, Bob here with World Series Game {series_num(g)}.")
+
+def inning_break(box, facts_left, mem):
+    side = Box.side(box.half); team = box.team[side]
+    runs = box.line[side][box.inning - 1] or 0
+    f = [f"That ends the {box.half} of the {ordinal(box.inning)}. The {team} scored {runs} and had {box.half_hits} hits that half.",
+         f"Score: {box.sc()}. Hits so far: {box.team['away']} {box.hits['away']}, {box.team['home']} {box.hits['home']}."]
+    if facts_left: f.append("Something to share with listeners: " + facts_left.pop(random.randrange(len(facts_left))))
+    return ask("Wrap up the half inning in three sentences: a quick recap, then share the item to share in your own warm words, then lead into the next half.",
+               "\n".join(f), mem, f"That's the {box.half} of the {ordinal(box.inning)}. {box.sc()}.")
+
+def worker():
+    run, seen_gen = RUN, -1
+    while True:
+        if run != RUN: return
+        with lock: gen, pk, mode = S["gen"], S["pk"], S["mode"]
+        if pk is None or gen == seen_gen: time.sleep(1); continue
+        seen_gen = gen
+        try:
+            g = feed(pk); state = g["gameData"]["status"]["abstractGameState"]
+            plays = [p for p in g["liveData"]["plays"]["allPlays"] if p["about"].get("isComplete")]
+            if state == "Preview": mode = "wait"
+            box, mem, seen, facts_left = Box(g), [], set(), list(FACTS)
+            done, quiet = 0, 0
+            if mode != "replay":
+                for p in plays: box.apply(p)
+                done = len(plays)
+            speak(intro(g, mode, box, mem), gen, box, "intro", mem)
+            while S["gen"] == gen:
+                while done < len(plays) and S["gen"] == gen:
+                    if mode != "replay" and len(plays) - done > 2:   # live and falling behind: recap the backlog in one go
+                        batch = plays[done:-1]
+                        for p in batch: box.apply(p)
+                        done += len(batch)
+                        facts = "\n".join(f"{p['about']['halfInning'].title()} of the {ordinal(p['about']['inning'])}: {p['result'].get('description', '')}" for p in batch)
+                        speak(ask(CATCHUP, facts + f"\nNow: {box.half} of the {ordinal(box.inning)}, {box.outs} out, {bases_text(box.bases)}, score {box.sc()}.", mem,
+                                  f"Let me catch you up. It's {box.sc()}."), gen, box, "catchup", mem)
+                        continue
+                    p = plays[done]; before = box.apply(p)
+                    hot = big_moment(p, before, box) or (state == "Final" and done == len(plays) - 1)
+                    task = (CALL if mode == "replay" else LIVE_CALL) + (BIG if hot else "")
+                    speak(ask(task, play_facts(p, g, box, before, seen), mem, p["result"].get("description", "")), gen, box, "play", mem, hot)
+                    done += 1; quiet += 1
+                    if box.outs >= 3 and S["gen"] == gen:
+                        speak(inning_break(box, facts_left, mem), gen, box, "break", mem); quiet = 0
+                    elif mode == "replay" and quiet >= 6 and not p["about"].get("isScoringPlay") and S["gen"] == gen and done < len(plays):
+                        nxt = plays[done].get("matchup", {}).get("batter", {}).get("fullName", "")
+                        speak(ask(STORY, f"Situation: {box.half} of the {ordinal(box.inning)}, {box.outs} out, {bases_text(box.bases)}, score {box.sc()}. Next batter: {nxt}.", mem, ""), gen, box, "story", mem)
+                        quiet = random.randint(-2, 1)
+                    if mode == "replay": pace(gen)
+                if mode != "replay" and state == "Live" and S["gen"] == gen and time.time() - S["last_talk"] > 50:
+                    # live and nothing new for a while: fill the quiet like a radio man would
+                    speak(ask(STORY, f"Situation: {box.half} of the {ordinal(box.inning)}, {box.outs} out, {bases_text(box.bases)}, score {box.sc()}. "
+                              f"Up now: {box.batter or 'the next batter'} against {box.pitcher or 'the pitcher'}. Do not invent any new play.", mem, ""), gen, box, "story", mem)
+                if S["gen"] != gen: break
+                if done >= len(plays) and state == "Final":
+                    end = ask("The game is over. Give the final score, one line on who made the difference based on the facts, and sign off warmly as Bob. Three sentences.",
+                              f"Final: {box.sc()}. Hits: {box.team['away']} {box.hits['away']}, {box.team['home']} {box.hits['home']}. Last play: {plays[-1]['result'].get('description', '')}",
+                              mem, f"And that's the ball game. Final score, {box.sc()}. This has been Bob.")
+                    speak(end, gen, box, "final", mem)
+                    with lock:
+                        if S["gen"] == gen: S["label"] += " (finished)"
+                    break
+                time.sleep(POLL_S)
+                g = feed(pk); state = g["gameData"]["status"]["abstractGameState"]
+                plays = [p for p in g["liveData"]["plays"]["allPlays"] if p["about"].get("isComplete")]
+        except Exception as e:
+            import traceback; traceback.print_exc(); seen_gen = -1; time.sleep(POLL_S)
+
+PAGE = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bob's Booth</title>
+<meta name="description" content="Brewers World Series radio called by Bob, an AI play-by-play announcer, with a tribute to Bob Uecker.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,600..900,100&family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* Bob's Booth. Brewers broadcast, 1970s-80s soul, modern execution.
+   Navy pinstripe "now playing" panel; green manual scoreboard; ticket-stub schedule; tribute.
+   Built for older fans: 20px base type, big targets, captions for every word. */
+:root{
+  --navy:#0e1e3a; --navy-2:#152a4f; --navy-3:#20396a;
+  --gold:#ffc52f; --gold-2:#e3a90f;
+  --royal:#1f4fa3;
+  --paper:#f2eee6; --paper-2:#e8e2d5; --ink:#111b2e; --ink-2:#4a5468; --line:rgba(17,27,46,.14);
+  --field:#1f4a36; --field-2:#183b2b; --cell:#102c20; --chalk:#f2efe4; --chalk-2:#a9c3b4;
+  --onair:#d9472b;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --cond:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{font-size:20px;overflow-x:clip}
+body{margin:0;background:var(--navy);color:#fff;font:400 1rem/1.55 var(--body);overflow-x:clip;-webkit-font-smoothing:antialiased}
+.g{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1200px;margin:0 auto}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.display{font-family:var(--display);font-variation-settings:"SOFT" 100;font-weight:800;letter-spacing:-.01em}
+.pin{background-color:var(--navy);background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.045) 0 1px,transparent 1px 26px)}
+
+/* ---------- top bar ---------- */
+.top{position:relative}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:18px}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;white-space:nowrap}
+.brand b{font:800 1.6rem/1 var(--display);font-variation-settings:"SOFT" 100;color:var(--gold)}
+.brand span{font:600 1rem/1 var(--cond);letter-spacing:.06em;color:#c3cde2}
+.air{display:inline-flex;align-items:center;gap:10px;font:600 1rem/1 var(--cond);letter-spacing:.06em;color:#c3cde2;
+  border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 16px;white-space:nowrap}
+.air i{width:11px;height:11px;border-radius:50%;background:#6a7389}
+.on .air{color:#fff;border-color:rgba(217,71,43,.6);background:rgba(217,71,43,.14)}
+.on .air i{background:var(--onair);box-shadow:0 0 0 4px rgba(217,71,43,.25)}
+.sleeve{height:12px;background:linear-gradient(var(--gold) 0 3px,var(--royal) 3px 9px,var(--gold) 9px)}
+
+/* ---------- now playing ---------- */
+.now .wrap{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(28px,5vw,64px);padding-block:clamp(36px,6vw,72px);align-items:start}
+.kick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px}
+.chip{font:600 .95rem/1 var(--cond);letter-spacing:.05em;padding:7px 12px;border-radius:6px;background:rgba(255,255,255,.08);color:#d7deec}
+.chip.live{background:var(--onair);color:#fff}
+.chip.gold{background:var(--gold);color:var(--navy)}
+.title{margin:0;font-size:clamp(3.2rem,9vw,6.4rem);line-height:.92;color:#fff}
+.title small{display:block;margin-top:10px;font:600 clamp(1.4rem,3vw,2rem)/1.15 var(--cond);letter-spacing:.01em;color:#c3cde2}
+.caption{margin:34px 0 0;padding-left:22px;border-left:4px solid var(--gold);font:500 clamp(1.25rem,2.3vw,1.6rem)/1.5 var(--body);color:#fff;min-height:4.6em;max-width:36em}
+.caption.idle{color:#b8c3da;font-weight:400}
+.caption .who{display:block;font:600 .9rem/1 var(--cond);letter-spacing:.08em;color:var(--gold);margin-bottom:10px}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:60px;padding:0 24px;border-radius:999px;cursor:pointer;
+  font:600 1.15rem/1 var(--cond);letter-spacing:.04em;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;transition:background .15s,border-color .15s,transform .08s}
+.btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.6)}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:22px;height:22px;flex:none}
+.btn.primary{min-height:68px;padding:0 34px;font-size:1.35rem;background:var(--gold);color:var(--navy);border-color:var(--gold)}
+.btn.primary:hover{background:#ffd35e}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.vol{display:inline-flex;align-items:center;border:1.5px solid rgba(255,255,255,.35);border-radius:999px;min-height:60px}
+.vol button{width:56px;height:56px;border:none;background:none;color:#fff;cursor:pointer;border-radius:999px;display:grid;place-items:center}
+.vol button:hover{background:rgba(255,255,255,.08)}
+.vol button svg{width:22px;height:22px}
+.vol output{font:600 1.15rem var(--cond);min-width:4.6em;text-align:center}
+.vol .lbl{font:600 1rem var(--cond);letter-spacing:.04em;color:#c3cde2;padding-left:18px}
+.meter{display:inline-flex;align-items:flex-end;gap:3px;height:18px;margin-left:2px}
+.meter b{width:4px;border-radius:2px;background:var(--gold);height:20%;transition:height .08s}
+.status{margin:16px 0 0;color:#aab6cf;font-size:.95rem}
+
+/* ---------- scoreboard ---------- */
+.board{background:linear-gradient(var(--field),var(--field-2));border-radius:14px;padding:20px 20px 22px;color:var(--chalk);
+  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 0 6px #0b2318,0 0 0 8px rgba(255,197,47,.55),0 24px 48px rgba(0,0,0,.4)}
+.board-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+.board-h h2{margin:0;font:600 1.05rem/1 var(--cond);letter-spacing:.08em;color:var(--chalk-2)}
+.board-h .inn{font:700 1.15rem/1 var(--cond);letter-spacing:.04em;color:var(--gold)}
+.sbwrap{overflow-x:auto;margin-inline:-4px}
+table.sb{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed;font-family:var(--cond);font-variant-numeric:tabular-nums}
+.sb thead th:first-child{width:3.1em}
+.sb thead th.gapc{width:4px}
+.sb th,.sb td{text-align:center;font-weight:700;padding:0}
+.sb thead th{font-size:.85rem;font-weight:600;color:var(--chalk-2);height:22px}
+.sb tbody th{text-align:left;font-size:1.25rem;letter-spacing:.04em;padding-right:6px;white-space:nowrap}
+.sb td{background:var(--cell);border-radius:3px;height:44px;font-size:1.45rem;box-shadow:inset 0 2px 0 rgba(0,0,0,.35)}
+.sb td.now{box-shadow:inset 0 0 0 2px var(--gold)}
+.sb td.tot,.sb th.tot{color:var(--gold)}
+.sb td.gap{background:none;box-shadow:none}
+.situ{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)}
+.diamond{width:92px;height:auto}
+.diamond .base{fill:var(--cell);stroke:var(--chalk-2);stroke-width:2.5}
+.diamond .base.on{fill:var(--gold);stroke:var(--gold)}
+.facts{display:grid;gap:6px;font-size:1rem;min-width:0}
+.facts div{display:flex;gap:10px;align-items:baseline;min-width:0}
+.facts b{font:600 .85rem/1 var(--cond);letter-spacing:.08em;color:var(--chalk-2);flex:none;width:5.2em}
+.facts span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.outs{display:inline-flex;gap:7px}
+.outs i{width:16px;height:16px;border-radius:50%;background:var(--cell);box-shadow:inset 0 0 0 2px var(--chalk-2)}
+.outs i.on{background:var(--gold);box-shadow:none}
+.board-empty{margin:4px 0 0;color:var(--chalk-2);font-size:1rem}
+
+/* ---------- light sections ---------- */
+.paper{background:var(--paper);color:var(--ink)}
+.sec .wrap{padding-block:clamp(48px,7vw,84px)}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px 32px;margin-bottom:28px}
+.sec-h h2{margin:0;font-size:clamp(2.2rem,5vw,3.2rem);line-height:1;color:var(--navy)}
+.sec-h p{margin:0;max-width:34em;color:var(--ink-2)}
+
+/* tickets */
+.tickets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:16px}
+.tk{position:relative;display:grid;grid-template-rows:auto 1fr auto;gap:10px;background:#fff;border-radius:12px;padding:20px 20px 18px;min-width:0;
+  box-shadow:0 1px 0 var(--line),0 10px 24px rgba(17,27,46,.06);
+  -webkit-mask:radial-gradient(circle at 0 62%,transparent 11px,#000 12px) left/51% 100% no-repeat,radial-gradient(circle at 100% 62%,transparent 11px,#000 12px) right/51% 100% no-repeat;
+          mask:radial-gradient(circle at 0 62%,transparent 11px,#000 12px) left/51% 100% no-repeat,radial-gradient(circle at 100% 62%,transparent 11px,#000 12px) right/51% 100% no-repeat}
+.tk.tuned{box-shadow:0 0 0 3px var(--gold),0 10px 24px rgba(17,27,46,.08)}
+.tk-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tk-top .n{font-size:2rem;line-height:1;color:var(--navy)}
+.tk-top .d{font:600 .95rem var(--cond);letter-spacing:.04em;color:var(--ink-2)}
+.tk .m{margin:0;font:600 1.3rem/1.2 var(--cond);letter-spacing:.01em}
+.tk .s{margin:0;font-size:1rem;color:var(--ink-2)}
+.tk .s.live{color:var(--onair);font-weight:600}
+.tk .s.fin b{color:var(--ink)}
+.tk-actions{display:grid;gap:8px;padding-top:12px;border-top:1.5px dashed var(--line)}
+.tk button{min-height:54px;border-radius:999px;border:none;cursor:pointer;font:600 1.1rem var(--cond);letter-spacing:.04em;background:var(--navy);color:#fff}
+.tk button:hover{background:var(--navy-3)}
+.tk button.alt{background:transparent;color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--navy)}
+.tk button.alt:hover{background:rgba(14,30,58,.06)}
+
+/* call log */
+.log{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.log li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}
+.log .t{font:600 1rem/1.5 var(--cond);letter-spacing:.04em;color:var(--royal)}
+.log .x{max-width:52em}
+.log .empty{display:block;color:var(--ink-2);padding:16px 0}
+
+/* tribute */
+.tribute .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px);padding-block:clamp(52px,8vw,96px)}
+.tribute h2{margin:0;font-size:clamp(2.8rem,6.5vw,4.6rem);line-height:.95;color:var(--gold)}
+.tribute .yrs{display:block;margin-top:12px;font:600 1.4rem var(--cond);letter-spacing:.06em;color:#c3cde2}
+.tribute p{color:#dbe2f0;max-width:34em}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:grid;grid-template-columns:5em minmax(0,1fr);gap:20px;padding:16px 0;border-top:1px solid rgba(255,255,255,.14)}
+.tl li:last-child{border-bottom:1px solid rgba(255,255,255,.14)}
+.tl .y{font-size:1.5rem;line-height:1.1;color:var(--gold)}
+.tl .e{color:#e6ebf5}
+.coda{margin-top:22px;font-style:italic;color:#c3cde2}
+
+.history .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px)}
+.history h2{margin:0;font-size:clamp(2.2rem,5vw,3.2rem);line-height:1;color:var(--navy)}
+.history p{margin:0 0 16px;max-width:36em}
+
+footer{color:#9eabc6;font-size:.9rem}
+footer .wrap{padding-block:36px 48px}
+footer p{max-width:72em;margin:0 0 8px}
+
+@media (max-width:900px){
+  .now .wrap,.tribute .wrap,.history .wrap{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .brand span{display:none}
+  .controls .btn.primary{width:100%}
+  .controls #pause{flex:1}
+  .vol{flex:1;justify-content:space-between}
+  .vol .lbl{display:none}
+  .log li{grid-template-columns:minmax(0,1fr);gap:4px}
+  .sb td{height:38px;font-size:1.2rem}
+  .sb tbody th{font-size:1.05rem}
+  .board{padding:16px 12px 18px}
+  .brand b{font-size:1.35rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="stage">
+<header class="top pin">
+  <div class="wrap g">
+    <div class="brand"><b>Bob's Booth</b><span>Brewers World Series radio</span></div>
+    <span class="air"><i aria-hidden="true"></i><span id="airtext">Off the air</span></span>
+  </div>
+  <div class="sleeve" aria-hidden="true"></div>
+</header>
+
+<main>
+  <section class="now pin" aria-label="Now playing">
+    <div class="wrap g">
+      <div>
+        <p class="kick" id="kick"><span class="chip gold">2026 World Series</span></p>
+        <h1 class="title display" id="title">Brewers baseball<small>on the radio, called by Bob</small></h1>
+        <p class="caption idle" id="caption" aria-live="polite">Press Listen and Bob will call the most recent Brewers game. Every word he says appears here in large print.</p>
+        <div class="controls">
+          <button class="btn primary" id="power">
+            <svg id="powericon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8v14.4L19 12z" fill="currentColor"/></svg>
+            <span id="powertext">Listen</span>
+          </button>
+          <button class="btn" id="pause" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>
+            <span>Pause</span>
+          </button>
+          <div class="vol" role="group" aria-label="Volume">
+            <span class="lbl">Volume</span>
+            <button id="quieter" aria-label="Quieter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+            <output id="volout" aria-live="polite">80%</output>
+            <button id="louder" aria-label="Louder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+        <p class="status" id="status">Looking for Bob's studio&hellip;</p>
+      </div>
+
+      <aside class="board" aria-labelledby="sb-h">
+        <div class="board-h"><h2 id="sb-h">SCOREBOARD</h2><span class="inn" id="inn"></span></div>
+        <div class="sbwrap" id="sbwrap"></div>
+        <p class="board-empty" id="sbnote">The board fills in as Bob calls the game, so a replay never gives away the ending.</p>
+        <div class="situ" id="situ" hidden>
+          <svg class="diamond" viewBox="0 0 120 100" role="img" aria-label="Runners on base" id="diamond">
+            <rect class="base" id="b2" x="48" y="6" width="24" height="24" transform="rotate(45 60 18)"/>
+            <rect class="base" id="b3" x="10" y="44" width="24" height="24" transform="rotate(45 22 56)"/>
+            <rect class="base" id="b1" x="86" y="44" width="24" height="24" transform="rotate(45 98 56)"/>
+            <path d="M51 86 H69 V92 L60 98 L51 92 Z" fill="#f2efe4"/>
+          </svg>
+          <div class="facts">
+            <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
+            <div><b>AT BAT</b><span id="batter"></span></div>
+            <div><b>PITCHING</b><span id="pitcher"></span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="sec paper" aria-labelledby="games-h">
+    <div class="wrap g">
+      <div class="sec-h">
+        <h2 class="display" id="games-h">The Series</h2>
+        <p>Finished games play from the first pitch. When a game is on, choose Listen live and Bob joins it in progress.</p>
+      </div>
+      <div class="tickets" id="games"><p>Loading the schedule&hellip;</p></div>
+    </div>
+  </section>
+
+  <section class="sec paper" aria-labelledby="log-h" style="border-top:1px solid var(--line)">
+    <div class="wrap g">
+      <div class="sec-h">
+        <h2 class="display" id="log-h">The call so far</h2>
+        <p>In case you stepped away, Bob's earlier calls are kept here, newest first.</p>
+      </div>
+      <ol class="log" id="log"><li><span class="empty">Nothing yet. Press Listen and Bob's calls will collect here.</span></li></ol>
+    </div>
+  </section>
+
+  <section class="sec paper history" aria-labelledby="hist-h" style="border-top:1px solid var(--line)">
+    <div class="wrap g">
+      <h2 class="display" id="hist-h">The Brewers</h2>
+      <div>
+        <p>The club began as the Seattle Pilots in 1969 and moved to Milwaukee for the 1970 season, playing at County Stadium until 2000. In 1982 "Harvey's Wallbangers" led the majors in home runs and reached the World Series, the "Suds Series," losing to St. Louis in seven games. That team had five future Hall of Famers: Robin Yount, Paul Molitor, Rollie Fingers, Ted Simmons and Don Sutton.</p>
+        <p>In 2026 the Brewers won the National League pennant by sweeping the Los Angeles Dodgers four games to none, with Jake Bauers named NLCS MVP. Now they face Tampa Bay for the first championship in team history.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="tribute pin" aria-labelledby="trib-h">
+    <div class="sleeve" aria-hidden="true"></div>
+    <div class="wrap g">
+      <div>
+        <h2 class="display" id="trib-h">Bob Uecker</h2>
+        <span class="yrs">1934 to 2025</span>
+        <p>For fifty-four seasons, summer in Milwaukee sounded like Bob Uecker. "Mr. Baseball" called Brewers games on the radio from 1971 through 2024, and every night with him felt like company.</p>
+        <p class="coda">He never got to call a Brewers championship. This booth keeps a light on for him.</p>
+      </div>
+      <ol class="tl">
+        <li><span class="y display">1956</span><span class="e">A Milwaukee kid signs with his hometown Braves.</span></li>
+        <li><span class="y display">1962</span><span class="e">Starts six seasons as a big-league backup catcher with the Braves, Cardinals and Phillies. He liked to say a career highlight was an intentional walk from Sandy Koufax.</span></li>
+        <li><span class="y display">1964</span><span class="e">Wins a World Series ring with the St. Louis Cardinals.</span></li>
+        <li><span class="y display">1971</span><span class="e">Joins the Brewers radio booth, where he stays for the rest of his life.</span></li>
+        <li><span class="y display">1980s</span><span class="e">Johnny Carson calls him "Mr. Baseball." He stars on <i>Mr. Belvedere</i>, sells Miller Lite and plays announcer Harry Doyle in <i>Major League</i>.</span></li>
+        <li><span class="y display">2003</span><span class="e">Receives the Ford C. Frick Award from the Baseball Hall of Fame.</span></li>
+        <li><span class="y display">2025</span><span class="e">Dies on January 16 at age 90. Fans still sit beside his bronze statue in the Uecker Seat.</span></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="pin"><div class="wrap g">
+  <p>Bob is an AI announcer made for fun. Gemini writes his lines from MLB's public pitch-by-pitch data, and a cloned voice reads them. Bob is not Bob Uecker, and these are not Uecker's words or voice. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
+  <p>Bob only broadcasts while his studio computer is running. If the page says he's off the air, check back at game time.</p>
+</div></footer>
+</div>
+
+<script>
+const TOPIC = "bobs-booth-mke-4q7v2k";
+const SAME = /trycloudflare\.com$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+let API = SAME ? "" : null;
+const $ = id => document.getElementById(id);
+const players = [new Audio(), new Audio()];
+players.forEach(p => p.crossOrigin = "anonymous");
+let vol = 0.8, gen = -1, last = 0, queue = [], playing = false, listening = false, paused = false, state = null, active = null, pre = null;
+let ctx = null, analyser = null, gain = null, buf = null, lvl = 0, log = [], current = null;
+const ICON_PLAY = '<path d="M7 4.8v14.4L19 12z" fill="currentColor"/>', ICON_STOP = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
+const short = name => (name || "").split(" ").pop();
+function ord(n){ const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+async function findStudio(){
+  if (API !== null) return API;
+  try{
+    const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=all`, {cache:"no-store"});
+    const msgs = (await r.text()).trim().split("\n").filter(Boolean).map(l => JSON.parse(l)).filter(m => m.event === "message");
+    const url = (msgs.length ? msgs[msgs.length - 1].message : "").trim();
+    if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url)){
+      const ok = await fetch(url + "/state", {cache:"no-store"}).catch(() => null);
+      if (ok && ok.ok){ API = url; return API; }
+    }
+  }catch(e){}
+  return null;
+}
+const api = (p, o) => fetch(API + "/" + p, Object.assign({cache:"no-store"}, o || {}));
+
+// ----- sound: two players so the next call is already loaded when this one ends -----
+const bars = [];
+function initAudio(){
+  if (ctx){ ctx.resume(); return; }
+  try{
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+    gain = ctx.createGain(); gain.gain.value = vol;
+    analyser.connect(gain); gain.connect(ctx.destination);
+    players.forEach(p => { ctx.createMediaElementSource(p).connect(analyser); p.volume = 1; });
+    requestAnimationFrame(tick);
+  }catch(e){ ctx = null; }
+}
+function tick(){
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  const target = Math.min(1, Math.sqrt(s / buf.length) * 6);
+  lvl += (target - lvl) * (target > lvl ? .5 : .18);
+  bars.forEach((b, i) => b.style.height = Math.max(18, Math.min(100, lvl * 100 * [.6, 1, .8, .5][i] + 18)) + "%");
+  requestAnimationFrame(tick);
+}
+function preload(){
+  if (!queue.length || (pre && pre.id === queue[0].id)) return;
+  const el = players.find(p => p !== active);
+  el.src = API + "/clip/" + queue[0].id; el.preload = "auto"; el.load(); pre = {id: queue[0].id, el};
+}
+function playNext(){
+  if (!listening || paused || playing || !queue.length) return;
+  const c = queue.shift();
+  let el;
+  if (pre && pre.id === c.id) el = pre.el; else { el = players.find(p => p !== active) || players[0]; el.src = API + "/clip/" + c.id; }
+  pre = null; active = el; playing = true;
+  if (!ctx) el.volume = vol;
+  showClip(c);
+  el.play().catch(() => { playing = false; });
+  preload();
+}
+players.forEach(p => {
+  p.onended = () => { playing = false; playNext(); };
+  p.onerror = () => { if (p === active){ playing = false; setTimeout(playNext, 400); } };
+});
+
+function tag(b){ return b ? `${b.half === "top" ? "Top" : "Bottom"} ${ord(b.inning)}` : "Pregame"; }
+function showClip(c){
+  if (current){ log.unshift(current); log = log.slice(0, 40); renderLog(); }
+  current = c;
+  const cap = $("caption"); cap.classList.remove("idle");
+  cap.innerHTML = '<span class="who">Bob, on the call</span>'; cap.append(c.text);
+  if (c.board) renderBoard(c.board);
+}
+function renderLog(){
+  $("log").replaceChildren(...log.map(c => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="t"></span><span class="x"></span>';
+    li.querySelector(".t").textContent = c.kind === "intro" ? "Pregame" : c.kind === "final" ? "Final" : tag(c.board);
+    li.querySelector(".x").textContent = c.text;
+    return li;
+  }));
+}
+function setOnAir(on){
+  $("stage").classList.toggle("on", on);
+  $("airtext").textContent = on ? "On the air" : "Off the air";
+  if (on && !bars.length){
+    const m = document.createElement("span"); m.className = "meter"; m.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 4; i++){ const b = document.createElement("b"); bars.push(b); m.append(b); }
+    document.querySelector(".air").append(m);
+  }
+  document.querySelector(".meter") && (document.querySelector(".meter").hidden = !on);
+}
+function setTitle(label){
+  const m = /^Game (\d+): (.+) at (.+) - (live|replay)/.exec(label || "");
+  const kick = $("kick"), title = $("title");
+  if (!m){
+    kick.innerHTML = '<span class="chip gold">2026 World Series</span>';
+    title.innerHTML = 'Brewers baseball<small>on the radio, called by Bob</small>'; return;
+  }
+  kick.innerHTML = '<span class="chip gold">2026 World Series</span>' + (m[4] === "live" ? '<span class="chip live">Live</span>' : '<span class="chip">Replay</span>');
+  title.innerHTML = ""; title.append("Game " + m[1]);
+  const sm = document.createElement("small"); sm.textContent = `${short(m[2])} at ${short(m[3])}`; title.append(sm);
+}
+
+// ----- scoreboard -----
+function renderBoard(b){
+  const n = Math.max(9, b.line.away.length, b.line.home.length);
+  const t = document.createElement("table"); t.className = "sb";
+  const head = t.createTHead().insertRow();
+  const corner = document.createElement("th"); corner.innerHTML = '<span class="sr">Team</span>'; head.append(corner);
+  for (let i = 1; i <= n; i++){ const th = document.createElement("th"); th.scope = "col"; th.textContent = i; head.append(th); }
+  const gth = document.createElement("th"); gth.className = "gapc"; head.append(gth);
+  for (const k of ["R","H"]){ const th = document.createElement("th"); th.scope = "col"; th.className = "tot"; th.textContent = k; head.append(th); }
+  const body = t.createTBody();
+  for (const side of ["away","home"]){
+    const r = body.insertRow(); const th = document.createElement("th"); th.scope = "row"; th.textContent = b.ab[side]; r.append(th);
+    for (let i = 0; i < n; i++){
+      const td = r.insertCell(); const v = b.line[side][i]; td.textContent = v == null ? "" : v;
+      if (b.inning === i + 1 && (b.half === "top") === (side === "away")) td.className = "now";
+    }
+    r.insertCell().className = "gap";
+    const R = r.insertCell(); R.className = "tot"; R.textContent = b.score[side];
+    const H = r.insertCell(); H.className = "tot"; H.textContent = b.hits[side];
+  }
+  $("sbwrap").replaceChildren(t);
+  $("situ").hidden = false; $("sbnote").hidden = !b.empty;
+  $("inn").textContent = `${b.half === "top" ? "Top" : "Bottom"} of the ${ord(b.inning)}`;
+  ["b1","b2","b3"].forEach((id, i) => $(id).classList.toggle("on", !!b.bases[i]));
+  ["o1","o2","o3"].forEach((id, i) => $(id).classList.toggle("on", i < b.outs));
+  $("batter").textContent = b.batter || "";
+  $("pitcher").textContent = b.pitcher || "";
+}
+
+// ----- straight from MLB, for when Bob's studio is off -----
+const MLB = "https://statsapi.mlb.com/api/v1";
+let offairTitle = false;
+async function mlbGames(){
+  const j = await (await fetch(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`, {cache:"no-store"})).json();
+  const out = [];
+  (j.dates || []).forEach(d => d.games.forEach(g => {
+    const a = g.teams.away, h = g.teams.home, ls = g.linescore || {};
+    out.push({pk: g.gamePk, num: g.seriesGameNumber || out.length + 1, date: g.gameDate, state: g.status.abstractGameState,
+      away: a.team.name, home: h.team.name, awayAb: a.team.abbreviation, homeAb: h.team.abbreviation,
+      awayRuns: a.score, homeRuns: h.score, inning: ((ls.inningHalf || "") + " " + (ls.currentInningOrdinal || "")).trim()});
+  }));
+  return out;
+}
+async function mlbLive(g){
+  try{
+    const ls = await (await fetch(`${MLB}/game/${g.pk}/linescore`, {cache:"no-store"})).json();
+    const line = {away: [], home: []};
+    (ls.innings || []).forEach(i => { line.away[i.num - 1] = i.away && i.away.runs != null ? i.away.runs : null;
+                                      line.home[i.num - 1] = i.home && i.home.runs != null ? i.home.runs : null; });
+    const o = ls.offense || {}, d = ls.defense || {};
+    renderBoard({ab: {away: g.awayAb || short(g.away).slice(0, 3).toUpperCase(), home: g.homeAb || short(g.home).slice(0, 3).toUpperCase()},
+      line, score: {away: ls.teams.away.runs || 0, home: ls.teams.home.runs || 0}, hits: {away: ls.teams.away.hits || 0, home: ls.teams.home.hits || 0},
+      inning: ls.currentInning || 1, half: (ls.inningHalf || "Top").toLowerCase() === "top" ? "top" : "bottom",
+      bases: [o.first ? 1 : 0, o.second ? 1 : 0, o.third ? 1 : 0], outs: ls.outs || 0,
+      batter: o.batter ? o.batter.fullName : "", pitcher: d.pitcher ? d.pitcher.fullName : ""});
+    setTitle(`Game ${g.num}: ${g.away} at ${g.home} - live`); offairTitle = true;
+    const k = $("kick"); k.innerHTML = '<span class="chip gold">2026 World Series</span><span class="chip live">Live score</span>';
+  }catch(e){}
+}
+
+// ----- Bob's studio -----
+async function poll(){
+  if (API === null && !(await findStudio())){
+    setOnAir(false); $("power").disabled = true;
+    const live = gamesCache.find(g => g.state === "Live");
+    $("status").textContent = live
+      ? "Bob's studio is switched off right now, so this is the live score straight from MLB. It updates by itself."
+      : "Bob is off the air. His studio computer is switched off right now. Check back at game time.";
+    if (live) await mlbLive(live); else if (offairTitle) { setTitle(""); offairTitle = false; }
+    setTimeout(poll, live ? 15000 : 30000); return;
+  }
+  try{
+    state = await (await api("state")).json();
+    $("power").disabled = false;
+    if (state.gen !== gen){ gen = state.gen; queue = []; last = 0; pre = null; players.forEach(p => p.pause()); playing = false; }
+    const fresh = await (await api(`since/${gen}/${last}`)).json();
+    fresh.forEach(c => { queue.push(c); last = c.id; });
+    const on = !!state.pk;
+    setOnAir(listening && on);
+    setTitle(on ? state.label : "");
+    $("status").textContent = on ? (listening ? "You're listening. Bob's words appear above as he speaks." : "Bob is broadcasting. Press Listen to tune in.") : "Bob's studio is ready. Press Listen, or pick a game below.";
+    if (playing) preload(); else playNext();
+  }catch(e){
+    API = SAME ? "" : null;
+    $("status").textContent = "Lost the signal. Trying again in a moment.";
+  }
+  setTimeout(poll, 2000);
+}
+
+const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
+const timeFmt = d => new Date(d).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+let gamesCache = [];
+async function loadGames(){
+  const studio = API !== null;
+  try{
+    gamesCache = studio ? await (await api("games")).json() : await mlbGames();
+    const box = $("games"); box.replaceChildren();
+    if (!gamesCache.length) box.innerHTML = "<p>No Brewers World Series games are listed yet.</p>";
+    gamesCache.forEach(g => {
+      const live = g.state === "Live", fin = g.state === "Final";
+      const a = short(g.away), h = short(g.home);
+      const tk = document.createElement("article");
+      tk.className = "tk" + (state && state.pk === g.pk ? " tuned" : "");
+      tk.innerHTML = '<div><div class="tk-top"><span class="n display"></span><span class="d"></span></div></div><div><p class="m"></p><p class="s"></p></div><div class="tk-actions"></div>';
+      tk.querySelector(".n").textContent = "Game " + g.num;
+      tk.querySelector(".d").textContent = dateFmt(g.date);
+      tk.querySelector(".m").textContent = `${a} at ${h}`;
+      const s = tk.querySelector(".s");
+      if (live){ s.className = "s live"; s.textContent = "On now, " + g.inning.toLowerCase(); }
+      else if (fin){ s.className = "s fin"; s.innerHTML = "Final: <b></b>"; s.querySelector("b").textContent = `${a} ${g.awayRuns}, ${h} ${g.homeRuns}`; }
+      else s.textContent = "First pitch " + timeFmt(g.date);
+      const add = (label, mode, alt) => { const b = document.createElement("button"); b.textContent = label; if (alt) b.className = "alt"; b.onclick = () => tune(g.pk, mode); tk.querySelector(".tk-actions").append(b); };
+      if (!studio){ const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob is off the air right now."; tk.querySelector(".tk-actions").append(n); }
+      else if (live){ add("Listen live", "live"); add("From the first pitch", "replay", true); }
+      else if (fin) add("Play this game", "replay");
+      else add("Wait for first pitch", "live", true);
+      box.append(tk);
+    });
+  }catch(e){}
+  setTimeout(loadGames, studio ? 30000 : 60000);
+}
+
+async function tune(pk, mode){
+  initAudio();
+  await api("play", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({pk, mode})});
+  log = []; current = null; $("log").innerHTML = '<li><span class="empty">Bob\'s calls will collect here as he goes.</span></li>';
+  startListening(); setTimeout(loadGames, 400);
+  window.scrollTo({top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+}
+function setPower(on){
+  $("powericon").innerHTML = on ? ICON_STOP : ICON_PLAY;
+  $("powertext").textContent = on ? "Stop" : "Listen";
+}
+function startListening(){
+  listening = true; paused = false; setPower(true);
+  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
+  const cap = $("caption"); cap.classList.add("idle"); cap.textContent = "Bob is settling in at the microphone. He'll start in a few seconds.";
+  playNext();
+}
+$("power").onclick = () => {
+  if (listening){
+    listening = false; players.forEach(p => p.pause()); playing = false; queue = []; pre = null; setPower(false);
+    $("pause").hidden = true; setOnAir(false);
+    const cap = $("caption"); cap.classList.add("idle"); cap.textContent = "Bob is turned off on this device. Press Listen to hear him again."; return;
+  }
+  initAudio();
+  if (state && state.pk){ startListening(); return; }
+  const live = gamesCache.find(g => g.state === "Live");
+  const lastFinal = [...gamesCache].reverse().find(g => g.state === "Final");
+  const pick = live || lastFinal;
+  if (pick) tune(pick.pk, live ? "live" : "replay"); else startListening();
+};
+$("pause").onclick = () => {
+  paused = !paused; $("pause").querySelector("span").textContent = paused ? "Resume" : "Pause";
+  if (paused){ if (active) active.pause(); }
+  else if (playing && active) active.play().catch(() => {}); else playNext();
+};
+function setVol(v){
+  vol = Math.max(0, Math.min(1, Math.round(v * 10) / 10));
+  if (gain) gain.gain.value = vol; else players.forEach(p => p.volume = vol);
+  $("volout").textContent = Math.round(vol * 100) + "%";
+}
+$("quieter").onclick = () => setVol(vol - .1);
+$("louder").onclick = () => setVol(vol + .1);
+
+if (new URLSearchParams(location.search).has("auto")){ listening = true; setPower(true); }
+renderBoard({empty:true, ab:{away:"AWAY", home:"HOME"}, line:{away:[], home:[]}, score:{away:"", home:""}, hits:{away:"", home:""}, inning:0, half:"top", bases:[0,0,0], outs:0});
+$("situ").hidden = true; $("inn").textContent = "";
+poll(); loadGames();
+</script>
+</body>
+</html>"""
+
+app = Flask(__name__)
+@app.after_request
+def _cors(r): r.headers["Access-Control-Allow-Origin"] = "*"; return r
+@app.route("/")
+def index(): return PAGE
+@app.route("/games")
+def games(): return jsonify(series_games())
+@app.route("/state")
+def state():
+    with lock: return jsonify({k: S[k] for k in ("gen", "pk", "mode", "label")})
+@app.route("/since/<int:gen>/<int:n>")
+def since(gen, n):
+    with lock: return jsonify([c for c in S["clips"] if c["id"] > n] if gen == S["gen"] else [])
+@app.route("/clip/<int:n>")
+def clip(n): return send_file(f"/content/clips/{n}.wav", mimetype="audio/wav", max_age=3600)
+def tune_to(pk, mode):
+    g = next((x for x in series_games() if x["pk"] == pk), None)
+    with lock:
+        S["gen"] += 1; S["clips"] = []; S["audio"] = 0.0; S["t0"] = None
+        if g:
+            S.update(pk=pk, mode=mode, label=f"Game {g['num']}: {g['away']} at {g['home']} - " + ("live" if mode == "live" else "replay"))
+        else:
+            S.update(pk=None, mode=None, label="Off the air")
+    return S["gen"]
+
+@app.route("/play", methods=["POST"])
+def play():
+    d = request.get_json(silent=True) or {}
+    return jsonify(ok=True, gen=tune_to(d.get("pk"), d.get("mode", "replay")))
+
+def autolive():
+    """At game time Bob tunes himself in: a live game (or one starting within 30 minutes) takes over the booth,
+    unless the booth is already on that game (live, or a listener chose to hear it from the first pitch)."""
+    from datetime import datetime
+    run = RUN
+    while run == RUN:
+        try:
+            gs = series_games(); now = time.time()
+            ts = lambda d: datetime.fromisoformat(d.replace("Z", "+00:00")).timestamp()
+            target = next((x for x in gs if x["state"] == "Live"), None) or \
+                     next((x for x in gs if x["state"] == "Preview" and 0 < ts(x["date"]) - now < 1800), None)
+            if target and S["pk"] != target["pk"]:
+                print(f"Game time: tuning Bob to Game {target['num']} live")
+                tune_to(target["pk"], "live")
+        except Exception as e:
+            print("autolive:", e)
+        time.sleep(60)
+
+threading.Thread(target=lambda: app.run(host="0.0.0.0", port=PORT), daemon=True).start()
+threading.Thread(target=worker, daemon=True).start()
+threading.Thread(target=autolive, daemon=True).start()
+tun = subprocess.Popen(["cloudflared", "tunnel", "--url", f"http://localhost:{PORT}", "--no-autoupdate"], stderr=subprocess.PIPE, text=True)
+for line in tun.stderr:
+    m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
+    if m:
+        print("\nBOB'S BOOTH:", m.group(0)); print("OBS browser source (autoplay):", m.group(0) + "/?auto")
+        try:   # post the new address to Bob's permanent signpost
+            urllib.request.urlopen(urllib.request.Request("https://ntfy.sh/" + TOPIC, data=m.group(0).encode(),
+                headers={"Title": "Bob is on the air", "Click": m.group(0), "Tags": "radio"}), timeout=15)
+            print("Permanent link: https://ntfy.sh/" + TOPIC)
+        except Exception as e: print("signpost error:", e)
+        break
+threading.Thread(target=lambda: [None for _ in tun.stderr], daemon=True).start()
