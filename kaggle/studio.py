@@ -154,6 +154,7 @@ How Bob sounds:
 - Folksy, old-fashioned phrasing. Talks to the listener directly now and then.
 - Never repeats himself: vary sentence openings, verbs, and jokes.
 Rules: use ONLY the game facts you are given; never invent stats, names, injuries, weather, crowd size or events about real people.
+Use the exact count, outs, runners and score from the facts. Never say strike three, ball four, or that a batter is out or on base unless the facts say so.
 The only made-up material allowed is Bob's own harmless tall tales about himself. Do not use any real broadcaster's catchphrases.
 Keep it clean and family-friendly, like a broadcast grandparents and kids enjoy together. Never use words or phrasing that could read as a double meaning;
 prefer plain baseball verbs such as throws, deals, fires, delivers, swings, lines, lifts, grounds, rolls.
@@ -163,8 +164,8 @@ RISKY = re.compile(r"\b(blow|blows|blew|blown|pump|pumps|pumped|pumping|stroke|s
 
 BIG = (" This is a big moment. Write it in two parts separated by a single | character. Before the |: calm and conversational, "
        "the setup and the key pitch. After the |: excited, the result and the immediate reaction, one or two short sentences.")
-PITCH = ("Call the pitch or pitches below as they happen, like live radio: the pitch and the count first, in a few words. "
-         "If the length allows, add a little color: the situation, the hitter, the pitcher, or a dry aside.")
+PITCH = ("Call the pitch or pitches below as they happen, like live radio: the pitch, then the count after it, in a few words. "
+         "The at-bat is still going. If the length allows, add a little color: the situation, the hitter, the pitcher, or a dry aside.")
 RESULT = ("Call how this plate appearance ended, like live radio: the decisive pitch, the result with energy that fits how big it is, "
           "then the score or situation if it changed. A routine out gets a brisk call; a hit, run or strikeout gets more.")
 ACTION = "Something happened on the field between pitches. Tell listeners briefly and naturally, then come back to the game."
@@ -183,6 +184,10 @@ CATCHUP = ("Several things happened while you were talking. Catch listeners up q
 
 def ordinal(n):
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def outs_text(n):
+    return ["nobody out", "one out", "two out", "three out"][min(max(n, 0), 3)]
 
 
 def bases_text(b):
@@ -319,18 +324,66 @@ class Writer:
         raise RuntimeError(f"writer unavailable: {str(last)[:120]}")
 
 
-def ask(task, facts, mem, fallback, words=None):
+LOCAL_MODELS = [m for m in os.environ.get("BOB_LOCAL_LLM", "Qwen/Qwen3-4B-Instruct-2507,Qwen/Qwen2.5-3B-Instruct").split(",") if m]
+LOCAL = None
+
+
+class LocalWriter:
+    """An open model on Kaggle's second GPU. It has no daily limit, so it writes the routine pitch calls and filler,
+    and covers everything else whenever Gemini runs out."""
+
+    def __init__(self, device):
+        import torch
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+        self.torch, self.lock, self.lat, self.count, self.fail, self.model, self.name = torch, threading.Lock(), 4.0, 0, 0, None, None
+        for name in LOCAL_MODELS:
+            try:
+                log(f"loading the writing model {name} on {device}")
+                self.tok = AutoTokenizer.from_pretrained(name)
+                self.model = AutoModelForCausalLM.from_pretrained(name, dtype=torch.float16, device_map=device).eval()
+                self.name = name
+                break
+            except Exception as e:
+                log(f"could not load {name}: {str(e)[:160]}")
+                self.model = None
+                torch.cuda.empty_cache()
+        if self.model is None:
+            raise RuntimeError("no local writing model")
+
+    def __call__(self, prompt, max_new=180):
+        t0 = time.time()
+        text = self.tok.apply_chat_template([{"role": "user", "content": prompt}], tokenize=False, add_generation_prompt=True)
+        ids = self.tok(text, return_tensors="pt").input_ids.to(self.model.device)
+        with self.lock, self.torch.inference_mode():
+            out = self.model.generate(ids, max_new_tokens=max_new, do_sample=True, temperature=0.8, top_p=0.9,
+                                      repetition_penalty=1.05, pad_token_id=self.tok.eos_token_id)
+        t = self.tok.decode(out[0][ids.shape[1]:], skip_special_tokens=True).strip()
+        self.count += 1; self.lat = .8 * self.lat + .2 * (time.time() - t0)
+        return re.sub(r"^\s*(Bob|BOB)\s*:\s*", "", t)
+
+
+def writer_lat():
+    return max(WRITE.lat if WRITE else 2.0, LOCAL.lat if LOCAL else 0.0)
+
+
+def ask(task, facts, mem, fallback, words=None, volume=False):
+    """volume=True: routine lines (pitches, filler) go to the local model first, saving Gemini's small daily allowance
+    for results, inning breaks, big moments and the pregame."""
     recent = ("Your last lines on the air. Do NOT reuse their openings, phrases or jokes:\n" + "\n".join("- " + x for x in mem[-6:]) + "\n\n") if mem else ""
     size = f" Aim for about {int(words)} words in total." if words else ""
-    p = f"{BOB}\n\n{recent}Style for this one: {random.choice(STYLES)}\n\nTask: {task}{size}\n\nFacts:\n{facts}"
-    try:
-        t = clean(WRITE(p))
-        if t and RISKY.search(t):
-            t = clean(WRITE(p + "\n\nRewrite this with plainer, family-friendly wording and no possible double meaning: " + t))
-        if t and not RISKY.search(t):
-            return t
-    except Exception as e:
-        log("writer:", str(e)[:160])
+    p = (f"{BOB}\n\n{recent}Style for this one: {random.choice(STYLES)}\n\nTask: {task}{size}\n\nFacts:\n{facts}\n\n"
+         "Reply with only the words Bob says on the air.")
+    order = [w for w in ((LOCAL, WRITE) if volume else (WRITE, LOCAL)) if w is not None]
+    for w in order:
+        try:
+            kw = {"max_new": int((words or 40) * 1.7) + 30} if w is LOCAL else {}
+            t = clean(w(p, **kw))
+            if t and RISKY.search(t):
+                t = clean(w(p + "\n\nRewrite this with plainer, family-friendly wording and no possible double meaning: " + t, **kw))
+            if t and not RISKY.search(t):
+                return t
+        except Exception as e:
+            log("writer:", str(e)[:160])
     return fallback
 
 
@@ -586,8 +639,8 @@ class Box:
         return f"{s.team['away']} {score['away']}, {s.team['home']} {score['home']}"
 
     def situation(s):
-        return (f"{s.half.title()} of the {ordinal(s.inning)}, {min(s.outs, 3)} out, {bases_text(s.bases)}, score {s.sc()}, "
-                f"count {s.balls} and {s.strikes}, {s.batter or 'the batter'} batting against {s.pitcher or 'the pitcher'}.")
+        return (f"{s.half.title()} of the {ordinal(s.inning)}, {outs_text(s.outs)}, {bases_text(s.bases)}, score {s.sc()}, "
+                f"count {s.balls} balls and {s.strikes} strikes, {s.batter or 'the batter'} batting against {s.pitcher or 'the pitcher'}.")
 
     def board(s):
         if not s.started:
@@ -604,12 +657,20 @@ class Box:
 SKIP_ACTIONS = {"game_advisory", "batter_timeout"}
 
 
-def pitch_line(e):
+def count_before(e, p):
+    """The count when this pitch was thrown (the feed gives the count after it)."""
+    prev = [x for x in (p or {}).get("playEvents", []) if x.get("isPitch") and x.get("index", 0) < e.get("index", 0)]
+    c = (prev[-1].get("count") if prev else None) or {}
+    return c.get("balls", 0), c.get("strikes", 0)
+
+
+def pitch_line(e, p=None):
     d = e.get("details", {})
     spd = (e.get("pitchData") or {}).get("startSpeed"); c = e.get("count", {})
-    t = f"{(d.get('type') or {}).get('description', 'pitch')}{f' {round(spd)} mph' if spd else ''}, {(d.get('description') or '').lower()}"
+    b0, s0 = count_before(e, p)
+    t = f"with the count {b0} and {s0}: {(d.get('type') or {}).get('description', 'pitch')}{f' {round(spd)} mph' if spd else ''}, {(d.get('description') or '').lower()}"
     if not d.get("isInPlay"):
-        t += f" (count now {c.get('balls')} and {c.get('strikes')})"
+        t += f", making the count {c.get('balls')} and {c.get('strikes')}"
     hd = e.get("hitData")
     if hd:
         bits = [f"off the bat at {round(hd['launchSpeed'])} mph" if hd.get("launchSpeed") else "",
@@ -802,13 +863,14 @@ class Director:
         """Longest line that can still be written and voiced inside the delay."""
         if self.render:
             return 30
-        return max(4.0, (DELAY - 4.0 - WRITE.lat) / max(self.voice.rtf, 0.25))
+        return max(4.0, (DELAY - 4.0 - writer_lat()) / max(self.voice.rtf, 0.25))
 
     def words_for(self, secs):
         return max(5, min(75, min(secs, self.max_secs()) * self.voice.wps))
 
     def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None):
-        text = text or ask(task + (BIG if hot else ""), facts, self.mem, fallback, words=self.words_for(secs))
+        text = text or ask(task + (BIG if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
+                           volume=kind in ("pitch", "action", "story", "pregame") and not hot)
         if not text:
             return None
         wav = self.voice.say(text, hot)
@@ -912,7 +974,7 @@ class Director:
                     lines.append(f"{e['p']['about']['halfInning'].title()} of the {ordinal(e['p']['about']['inning'])}: {e['p']['result'].get('description', '')}")
                 elif e["kind"] == "pitch":
                     self.box.enter(e["p"]); self.box.pitch(e["e"]); self.cur_p = e["p"]
-                    lines.append("Pitch: " + pitch_line(e["e"]))
+                    lines.append("Pitch " + pitch_line(e["e"], e["p"]))
             self.chunk = self.box.key()
             self.say(CATCHUP, "\n".join(lines[-8:]) + "\nNow: " + self.box.situation(), f"It's {self.box.sc()}.", "catchup", 12, event_t=evs[-1]["t"])
             self.hint = "result" if results else "pitch"
@@ -955,11 +1017,11 @@ class Director:
             before = self.box.apply(p)
             hot = big_moment(p, before, self.box)
             self.say(RESULT, self.result_facts(p, before, actions), p["result"].get("description", ""), "play",
-                     min(room, 24 if hot else 15), hot=hot, event_t=res["t"])
+                     min(room, 20 if hot else 14), hot=hot, event_t=res["t"])
             self.hint = "result"
             self.inning_end()
             return
-        lines = [pitch_line(e["e"]) for e in pitches]
+        lines = [pitch_line(e["e"], e["p"]) for e in pitches]
         acts = [a["e"]["details"].get("description", "") for a in actions]
         facts = [f"Situation: {self.box.situation()}"]
         if lines:
@@ -978,12 +1040,12 @@ class Director:
         a, r, m = p["about"], p["result"], p.get("matchup", {})
         h, ab, pa = before["bat"]
         today = "first trip to the plate today" if pa == 0 else f"{h} for {ab} so far today"
-        f = [f"{a['halfInning'].title()} of the {ordinal(a['inning'])}. Before the play: {before['outs']} out, {bases_text(before['bases'])}, score {self.box.sc(before['score'])}.",
+        f = [f"{a['halfInning'].title()} of the {ordinal(a['inning'])}. Before the play: {outs_text(before['outs'])}, {bases_text(before['bases'])}, score {self.box.sc(before['score'])}.",
              f"Batter: {m.get('batter', {}).get('fullName')} of the {self.box.team[Box.side(a['halfInning'])]}, bats {m.get('batSide', {}).get('description', '').lower()}, {today}.",
              f"Pitcher: {m.get('pitcher', {}).get('fullName')}, throws {m.get('pitchHand', {}).get('description', '').lower()}, {before['pc']} pitches so far tonight.",
-             "Pitches in this at-bat: " + "; ".join(pitch_line(e) for e in p.get("playEvents", []) if e.get("isPitch"))[-700:],
+             "Pitches in this at-bat: " + "; ".join(pitch_line(e, p) for e in p.get("playEvents", []) if e.get("isPitch"))[-900:],
              f"Result: {r.get('description', '')}",
-             f"After the play: {min(self.box.outs, 3)} out, {bases_text(self.box.bases)}, score {self.box.sc()}."]
+             f"After the play: {outs_text(self.box.outs)}, {bases_text(self.box.bases)}, score {self.box.sc()}."]
         if r.get("rbi"):
             f.append(f"Runs batted in on the play: {r['rbi']}.")
         f += ["Also happened: " + x["e"]["details"].get("description", "") for x in actions]
@@ -1010,7 +1072,7 @@ class Director:
             self.background(facts, chance=0.8)
             n = 3 if self.hint in ("break", "change") else 1
             w = self.words_for(min(secs, 14))
-            text = ask(FILL.format(n=n, w=int(w)), "\n".join(facts), self.mem, "", words=None)
+            text = ask(FILL.format(n=n, w=int(w)), "\n".join(facts), self.mem, "", words=w * n, volume=True)
             self.pool = [s.strip() for s in re.split(r"\n\s*\|\|\s*\n|\s\|\|\s", text or "") if len(s.split()) >= 4]
             self.pool_key = key
         if not self.pool:
@@ -1074,7 +1136,7 @@ def run_live(game, voice):
             if "Delay" in detail or "Suspend" in detail or "Review" in detail or "challenge" in detail.lower():
                 expect = max(expect, idle + 60)
             remaining = expect - idle
-            ready_in = voice.rtf * 10 + WRITE.lat + 1.5          # start the next line early enough to land on time
+            ready_in = voice.rtf * 10 + writer_lat() + 1.5        # start the next line early enough to land on time
             if cast.backlog() < ready_in and remaining - cast.backlog() > 10 and idle > 4:
                 d.filler(min(remaining - cast.backlog() - 3, 14))
             time.sleep(0.4)
@@ -1242,6 +1304,15 @@ def main():
     serve()                         # live: the page finds the studio (and says it's warming up) while the voices load
     voice = Voice()
     voice.choose()
+    global LOCAL
+    if os.environ.get("BOB_LOCAL_LLM", "on") != "off":
+        try:
+            import torch
+            LOCAL = LocalWriter(f"cuda:{max(0, torch.cuda.device_count() - 1)}" if torch.cuda.device_count() else "cpu")
+            t0 = time.time(); LOCAL("Say hello in five words.", max_new=20)
+            log(f"local writer ready: {LOCAL.name}, {time.time() - t0:.1f}s for a short line")
+        except Exception as e:
+            log("local writer unavailable, Gemini only:", str(e)[:200]); LOCAL = None
     t0 = time.time()
     w = voice.say("Two balls and one strike. Here's the pitch, a slider low and away, and he holds up for ball three. The crowd is on its feet.")
     log(f"voice speed: {time.time() - t0:.1f}s of work for {len(w) / SR:.1f}s of speech (steps {NUM_STEP}, GPUs {len(voice.models)})")
@@ -1262,7 +1333,8 @@ def main():
         todo = [x for x in gs if str(x["pk"]) in RENDER or str(x["num"]) in RENDER] or [x for x in gs if x["state"] == "Final"]
         for gm in todo:
             run_render(gm, voice)
-    log(f"done. writer requests {WRITE.count}, failures {WRITE.fail}, writer {WRITE.lat:.1f}s, voice rtf {voice.rtf:.2f}, words/s {voice.wps:.2f}")
+    log(f"done. Gemini requests {WRITE.count} ({WRITE.lat:.1f}s each), local model lines {LOCAL.count if LOCAL else 0} "
+        f"({LOCAL.lat if LOCAL else 0:.1f}s each), voice rtf {voice.rtf:.2f}, words/s {voice.wps:.2f}")
 
 
 if __name__ == "__main__":
