@@ -69,6 +69,9 @@ def start(mode="live"):
     book = json.load(open(nb))
     src = book["cells"][0]["source"]
     src = [l.replace('setdefault("BOB_MODE", "live")', f'setdefault("BOB_MODE", "{mode}")') for l in src]
+    sha = os.environ.get("GITHUB_SHA")
+    if sha:   # fetch exactly this commit's studio code (the main branch link can lag a few minutes after a push)
+        src = [l.replace("/bobs-booth/main/kaggle/studio.py", f"/bobs-booth/{sha}/kaggle/studio.py") for l in src]
     # Kaggle doesn't hand notebook secrets to runs started through its API, so the Gemini key (a GitHub secret)
     # rides along inside this private notebook's run instead. It is never printed.
     key = os.environ.get("GEMINI_API_KEY", "").strip()
