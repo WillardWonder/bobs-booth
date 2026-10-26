@@ -164,6 +164,8 @@ RISKY = re.compile(r"\b(blow|blows|blew|blown|pump|pumps|pumped|pumping|stroke|s
 
 BIG = (" This is a big moment. Write it in two parts separated by a single | character. Before the |: calm and conversational, "
        "the setup and the key pitch. After the |: excited, the result and the immediate reaction, one or two short sentences.")
+MOOD = {"good": " It's great news for the Brewers, so after the | Bob lets it fly and celebrates.",
+        "bad": " It's bad news for the Brewers, so after the | Bob reacts with loud, pained disbelief, never cheering for the other team."}
 PITCH = ("Call the pitch or pitches below as they happen, like live radio: the pitch, then the count after it, in a few words. "
          "The at-bat is still going. If the length allows, add a little color: the situation, the hitter, the pitcher, or a dry aside.")
 RESULT = ("Call how this plate appearance ended, like live radio: the decisive pitch, the result with energy that fits how big it is, "
@@ -752,20 +754,37 @@ def events_of(g, seen, done, hold_in_play=True):
     return out
 
 
-HOT_EVENTS = {"single", "double", "triple", "home_run",                       # every hit
-              "strikeout", "strikeout_double_play",                           # every strikeout
-              "grounded_into_double_play", "double_play", "triple_play",     # twin killings
-              "caught_stealing_2b", "caught_stealing_3b", "caught_stealing_home",
-              "pickoff_1b", "pickoff_2b", "pickoff_3b"}
+HITS_X = {"single", "double", "triple", "home_run"}
+STRIKEOUTS = {"strikeout", "strikeout_double_play"}
+TWO_OUTS = {"grounded_into_double_play", "double_play", "strikeout_double_play", "triple_play", "sac_fly_double_play", "sac_bunt_double_play"}
+RUNNER_OUT = {"caught_stealing_2b", "caught_stealing_3b", "caught_stealing_home", "pickoff_1b", "pickoff_2b", "pickoff_3b",
+              "pickoff_caught_stealing_2b", "pickoff_caught_stealing_3b", "pickoff_caught_stealing_home"}
 
 
 def big_moment(p, before, box):
-    """Bob's excited voice: any hit, any run, any strikeout, any double play, and a big out with runners in scoring position."""
+    """When Bob uses the excited voice: plays that are really good or really bad for Milwaukee.
+    Returns "good", "bad" or None (calm). Good: every Brewers hit and run, every Brewers strikeout, double play or
+    runner thrown out on defense, and escaping a jam. Bad: a home run, extra-base hit, run or clutch hit against them,
+    a Brewers double play or runner thrown out, and Brewers runners stranded in scoring position."""
     et = p["result"].get("eventType", "")
-    if et in HOT_EVENTS or p["about"].get("isScoringPlay"):
-        return True
+    scored = bool(p["about"].get("isScoringPlay"))
     risp = before["bases"][1] or before["bases"][2]
-    return bool(risp and before["outs"] == 2 and box.outs >= 3)
+    stranded = bool(risp and before["outs"] == 2 and box.outs >= 3)
+    mil = next((k for k in ("away", "home") if box.team.get(k) == "Brewers" or box.ab.get(k) == "MIL"), None)
+    batting = box.side(p["about"]["halfInning"])
+    if mil is None:                                   # not a Brewers game: excited for any big play
+        return "good" if (et in HITS_X | STRIKEOUTS | TWO_OUTS | RUNNER_OUT or scored or stranded) else None
+    if batting == mil:
+        if et in HITS_X or scored:
+            return "good"
+        if et in TWO_OUTS or et in RUNNER_OUT or stranded:
+            return "bad"
+        return None
+    if et in STRIKEOUTS or et in TWO_OUTS or et in RUNNER_OUT or stranded:
+        return "good"
+    if et in ("home_run", "double", "triple") or scored or (risp and et == "single"):
+        return "bad"
+    return None
 
 
 def etype(e):
@@ -915,7 +934,7 @@ class Director:
     def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None, allow=None):
         if allow is None and kind in ("story", "action", "change"):
             allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)}}
-        text = text or ask(task + (BIG if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
+        text = text or ask(task + (BIG + MOOD.get(hot, "") if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
                            volume=kind in ("pitch", "action", "story") and not hot, allow=allow)
         if not text:
             return None
