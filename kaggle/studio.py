@@ -219,8 +219,17 @@ def bio(g, pid):
     return ", ".join(b for b in bits if b)
 
 
-def stats_line(g, pid):
-    """A player's real numbers from MLB's box score: this postseason (the box score's season line in a World Series game) and tonight."""
+def ip_outs(ip):
+    try:
+        a, _, b = str(ip).partition(".")
+        return int(a or 0) * 3 + int(b or 0)
+    except ValueError:
+        return 0
+
+
+def stats_line(g, pid, before_game=False):
+    """A player's real postseason numbers from MLB's box score (in a World Series game its season line is the postseason).
+    before_game=True (replays): tonight's final line is taken back out, so a replay never gives away what happens later."""
     try:
         teams = g["liveData"]["boxscore"]["teams"]
         pl = next(teams[k]["players"][f"ID{pid}"] for k in ("away", "home") if f"ID{pid}" in teams[k]["players"])
@@ -228,27 +237,27 @@ def stats_line(g, pid):
         return ""
     name = pl.get("person", {}).get("fullName", "")
     season, today = pl.get("seasonStats") or {}, pl.get("stats") or {}
-    pos = (pl.get("position") or {}).get("abbreviation", "")
-    out = []
-    if pos == "P":
-        sp, tp = season.get("pitching") or {}, today.get("pitching") or {}
-        if sp.get("gamesPlayed"):
-            out.append(f"{name} this postseason: {sp.get('gamesPlayed')} games pitched, {sp.get('inningsPitched', '0')} innings, "
-                       f"earned run average {sp.get('era', '-')}, {sp.get('strikeOuts', 0)} strikeouts, {sp.get('wins', 0)} wins and {sp.get('losses', 0)} losses.")
-        if tp.get("numberOfPitches") or tp.get("battersFaced"):
-            out.append(f"{name} tonight: {tp.get('inningsPitched', '0')} innings, {tp.get('numberOfPitches', 0)} pitches, "
-                       f"{tp.get('strikeOuts', 0)} strikeouts, {tp.get('hits', 0)} hits and {tp.get('earnedRuns', 0)} earned runs allowed.")
-    else:
-        sb, tb = season.get("batting") or {}, today.get("batting") or {}
-        if sb.get("gamesPlayed"):
-            out.append(f"{name} this postseason: batting {sb.get('avg', '-')}, {sb.get('hits', 0)} hits in {sb.get('atBats', 0)} at-bats, "
-                       f"{sb.get('homeRuns', 0)} home runs, {sb.get('rbi', 0)} runs batted in, over {sb.get('gamesPlayed')} games.")
-        if tb.get("plateAppearances"):
-            out.append(f"{name} tonight: {tb.get('hits', 0)} for {tb.get('atBats', 0)}" +
-                       (f", {tb['homeRuns']} home runs" if tb.get("homeRuns") else "") + (f", {tb['rbi']} runs batted in" if tb.get("rbi") else "") + ".")
-    if out:
-        out.append("These are the only numbers about him you may use.")
-    return " ".join(out)
+    label = "this postseason before tonight" if before_game else "this postseason so far"
+    if (pl.get("position") or {}).get("abbreviation") == "P":
+        sp, tp = dict(season.get("pitching") or {}), (today.get("pitching") or {}) if before_game else {}
+        outs = ip_outs(sp.get("inningsPitched", 0)) - ip_outs(tp.get("inningsPitched", 0))
+        games = int(sp.get("gamesPlayed", 0) or 0) - (1 if tp.get("battersFaced") else 0)
+        if games <= 0 or outs <= 0:
+            return f"{name} has not pitched yet {label}."
+        er = int(sp.get("earnedRuns", 0) or 0) - int(tp.get("earnedRuns", 0) or 0)
+        k = int(sp.get("strikeOuts", 0) or 0) - int(tp.get("strikeOuts", 0) or 0)
+        era = f"{27 * er / outs:.2f}" if before_game else sp.get("era", f"{27 * er / outs:.2f}")
+        return (f"{name} {label}: {games} games pitched, {outs // 3}{'.' + str(outs % 3) if outs % 3 else ''} innings, "
+                f"earned run average {era}, {k} strikeouts. These are the only numbers about him you may use.")
+    sb, tb = dict(season.get("batting") or {}), (today.get("batting") or {}) if before_game else {}
+    sub = lambda key: int(sb.get(key, 0) or 0) - int(tb.get(key, 0) or 0)
+    games = int(sb.get("gamesPlayed", 0) or 0) - (1 if tb.get("plateAppearances") else 0)
+    ab, h = sub("atBats"), sub("hits")
+    if games <= 0 or ab <= 0:
+        return f"{name} has no at-bats yet {label}."
+    avg = f"{h / ab:.3f}".lstrip("0")
+    return (f"{name} {label}: batting {avg}, {h} hits in {ab} at-bats, {sub('homeRuns')} home runs, {sub('rbi')} runs batted in, "
+            f"over {games} games. These are the only numbers about him you may use.")
 
 
 def clean(t):
@@ -1018,7 +1027,7 @@ class Director:
 
     def __init__(self, g, game, cast, voice, render=False):
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
-        self.box = Box(g); self.mem = []; self.people = set(); self.facts_left = list(FACTS)
+        self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
         self.told = []; self.said = 0; self.tale_at = -99
         self.seen, self.done = set(), set()
         self.chunk = "pregame"; self.cur_p = None; self.hint = "pitch"; self.pool = []; self.pool_key = None
@@ -1087,12 +1096,16 @@ class Director:
     def background(self, out, p=None, chance=0.5):
         m = (p or self.cur_p or {}).get("matchup", {})
         for who in (m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")):
-            if who and who not in self.people and random.random() < chance:
-                self.people.add(who); out.append("Background you may use one detail from: " + bio(self.g, who))
-            if who:
-                st = stats_line(self.g, who)
-                if st:
-                    out.append("Real numbers from MLB: " + st)
+            if who and self.said - self.people.get(who, -999) > 80 and random.random() < chance:
+                self.people[who] = self.said
+                out.append("Background you may use one detail from: " + bio(self.g, who))
+                st = stats_line(self.g, who, before_game=self.render)
+                h, ab, pa = self.box.bat.get(who, (0, 0, 0))
+                if pa:
+                    st += f" Tonight so far: {h} for {ab}."
+                elif self.box.pc.get(who):
+                    st += f" Tonight so far: {self.box.pc[who]} pitches."
+                out.append("Real numbers from MLB: " + st)
 
     def share_item(self, chance=1.0):
         if self.facts_left and random.random() < chance:
@@ -1186,7 +1199,7 @@ class Director:
         if change and not res:
             a = change[-1]; pid = (a["e"].get("player") or {}).get("id")
             desc = a["e"]["details"].get("description", "")
-            facts = desc + (("\nBackground on the new pitcher: " + bio(self.g, pid) + "\nReal numbers from MLB: " + (stats_line(self.g, pid) or "none; mention no numbers")) if pid else "") + "\nSituation: " + self.box.situation()
+            facts = desc + (("\nBackground on the new pitcher: " + bio(self.g, pid) + "\nReal numbers from MLB: " + (stats_line(self.g, pid, before_game=self.render) or "none; mention no numbers")) if pid else "") + "\nSituation: " + self.box.situation()
             self.say(CHANGE, facts, desc, "change", min(room, 20), event_t=a["t"])
             self.hint = "change"
             rest = [x for x in group if x is not a and x["kind"] != "action"]
