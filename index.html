@@ -162,6 +162,17 @@ footer{color:#9eabc6;font-size:.9rem}
 footer .wrap{padding-block:36px 48px}
 footer p{max-width:72em;margin:0 0 8px}
 
+/* replay inning jumps, spoiler-free scores */
+.jump{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:18px}
+.jump .lbl{font:600 1rem var(--cond);letter-spacing:.04em;color:#c3cde2;margin-right:4px}
+.jump button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;
+  font:600 1rem var(--cond);letter-spacing:.03em;cursor:pointer}
+.jump button:hover{background:rgba(255,255,255,.08)}
+.jump button[aria-current="true"]{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.tk .reveal{min-height:0;height:auto;padding:2px 0;border-radius:0;background:none;color:var(--royal);font:600 1rem var(--body);
+  text-decoration:underline;text-underline-offset:3px;box-shadow:none}
+.tk .reveal:hover{background:none;color:var(--navy)}
+
 @media (max-width:900px){
   .now .wrap,.tribute .wrap,.history .wrap{grid-template-columns:minmax(0,1fr)}
 }
@@ -197,7 +208,7 @@ footer p{max-width:72em;margin:0 0 8px}
       <div>
         <p class="kick" id="kick"><span class="chip gold">2026 World Series</span></p>
         <h1 class="title display" id="title">Brewers baseball<small>on the radio, called by Bob</small></h1>
-        <p class="caption idle" id="caption" aria-live="polite">Press Listen and Bob will call the most recent Brewers game. Every word he says appears here in large print.</p>
+        <p class="caption idle" id="caption" aria-live="polite">Press Listen to hear Bob live when a game is on, or the latest replay when it isn't. Every word he says appears here in large print.</p>
         <div class="controls">
           <button class="btn primary" id="power">
             <svg id="powericon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8v14.4L19 12z" fill="currentColor"/></svg>
@@ -214,6 +225,7 @@ footer p{max-width:72em;margin:0 0 8px}
             <button id="louder" aria-label="Louder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
           </div>
         </div>
+        <div class="jump" id="jump" role="group" aria-label="Jump to an inning" hidden></div>
         <p class="status" id="status">Looking for Bob's studio&hellip;</p>
       </div>
 
@@ -230,6 +242,7 @@ footer p{max-width:72em;margin:0 0 8px}
           </svg>
           <div class="facts">
             <div><b>OUTS</b><span class="outs" aria-label="Outs"><i id="o1"></i><i id="o2"></i><i id="o3"></i></span></div>
+            <div><b>COUNT</b><span id="count"></span></div>
             <div><b>AT BAT</b><span id="batter"></span></div>
             <div><b>PITCHING</b><span id="pitcher"></span></div>
           </div>
@@ -242,7 +255,7 @@ footer p{max-width:72em;margin:0 0 8px}
     <div class="wrap g">
       <div class="sec-h">
         <h2 class="display" id="games-h">The Series</h2>
-        <p>Finished games play from the first pitch. When a game is on, choose Listen live and Bob joins it in progress.</p>
+        <p>On game nights Bob goes on the air 30 minutes before first pitch, and everyone hears the same broadcast. Finished games replay any time, inning by inning.</p>
       </div>
       <div class="tickets" id="games"><p>Loading the schedule&hellip;</p></div>
     </div>
@@ -292,39 +305,54 @@ footer p{max-width:72em;margin:0 0 8px}
 
 <footer class="pin"><div class="wrap g">
   <p>Bob is an AI announcer made for fun. Gemini writes his lines from MLB's public pitch-by-pitch data, and a cloned voice reads them. Bob is not Bob Uecker, and these are not Uecker's words or voice. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
-  <p>Bob only broadcasts while his studio computer is running. If the page says he's off the air, check back at game time.</p>
+  <p>On game nights Bob's studio runs on a free cloud computer and goes on the air 30 minutes before first pitch. Finished games are saved here as replays.</p>
 </div></footer>
 </div>
 
 <script>
+// ---------------------------------------------------------------------------------------------
+// Bob's Booth page. Two ways to listen:
+//  * Live: Bob's studio (a Kaggle notebook) broadcasts one shared stream. Every clip has a time on a
+//    single timeline, so everyone hears the same moment, about 15 seconds behind the field.
+//  * Replays: finished games are saved on this site as one MP3 per half inning plus a game.json
+//    timeline, so the captions and scoreboard follow along and listeners can jump to any inning.
+// When the studio is off, the page shows the schedule and the live score straight from MLB.
+// ---------------------------------------------------------------------------------------------
 const TOPIC = "bobs-booth-mke-4q7v2k";
-const SAME = /trycloudflare\.com$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
-let API = SAME ? "" : null;
+const MLB = "https://statsapi.mlb.com/api/v1";
 const $ = id => document.getElementById(id);
-const players = [new Audio(), new Audio()];
-players.forEach(p => p.crossOrigin = "anonymous");
-let vol = 0.8, gen = -1, last = 0, queue = [], playing = false, listening = false, paused = false, state = null, active = null, pre = null;
-let ctx = null, analyser = null, gain = null, buf = null, lvl = 0, log = [], current = null;
-const ICON_PLAY = '<path d="M7 4.8v14.4L19 12z" fill="currentColor"/>', ICON_STOP = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
 const short = name => (name || "").split(" ").pop();
 function ord(n){ const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+const timeFmt = t => new Date(t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
+const ICON_PLAY = '<path d="M7 4.8v14.4L19 12z" fill="currentColor"/>', ICON_STOP = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
 
+let API = null, studio = null, games = [], replays = {};
+const TEST_STUDIO = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? new URLSearchParams(location.search).get("studio") : null;
+let mode = null;            // "live" | "replay" | null
+let listening = false, paused = false, vol = 0.8;
+let log = [], current = null, revealed = new Set(), gamesSig = "";
+
+// ---------------- finding Bob's studio (its address changes every run; ntfy is the signpost)
 async function findStudio(){
-  if (API !== null) return API;
+  if (TEST_STUDIO) return TEST_STUDIO;
   try{
-    const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=all`, {cache:"no-store"});
+    const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=12h`, {cache:"no-store"});
     const msgs = (await r.text()).trim().split("\n").filter(Boolean).map(l => JSON.parse(l)).filter(m => m.event === "message");
-    const url = (msgs.length ? msgs[msgs.length - 1].message : "").trim();
-    if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url)){
-      const ok = await fetch(url + "/state", {cache:"no-store"}).catch(() => null);
-      if (ok && ok.ok){ API = url; return API; }
+    for (const m of msgs.reverse()){
+      const url = (m.message || "").trim();
+      if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url)) continue;
+      const ok = await fetch(url + "/live?since=999999999", {cache:"no-store"}).then(r => r.ok).catch(() => false);
+      if (ok) return url;
     }
   }catch(e){}
   return null;
 }
-const api = (p, o) => fetch(API + "/" + p, Object.assign({cache:"no-store"}, o || {}));
 
-// ----- sound: two players so the next call is already loaded when this one ends -----
+// ---------------- sound: two players, so the next piece is loaded before this one ends
+const players = [new Audio(), new Audio()];
+players.forEach(p => { p.crossOrigin = "anonymous"; p.preload = "auto"; });
+let active = players[0], ctx = null, analyser = null, gain = null, buf = null, lvl = 0;
 const bars = [];
 function initAudio(){
   if (ctx){ ctx.resume(); return; }
@@ -334,78 +362,67 @@ function initAudio(){
     gain = ctx.createGain(); gain.gain.value = vol;
     analyser.connect(gain); gain.connect(ctx.destination);
     players.forEach(p => { ctx.createMediaElementSource(p).connect(analyser); p.volume = 1; });
-    requestAnimationFrame(tick);
-  }catch(e){ ctx = null; }
+    requestAnimationFrame(meterTick);
+  }catch(e){ ctx = null; players.forEach(p => p.volume = vol); }
 }
-function tick(){
+function meterTick(){
   analyser.getFloatTimeDomainData(buf);
   let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
   const target = Math.min(1, Math.sqrt(s / buf.length) * 6);
   lvl += (target - lvl) * (target > lvl ? .5 : .18);
   bars.forEach((b, i) => b.style.height = Math.max(18, Math.min(100, lvl * 100 * [.6, 1, .8, .5][i] + 18)) + "%");
-  requestAnimationFrame(tick);
+  requestAnimationFrame(meterTick);
 }
-function preload(){
-  if (!queue.length || (pre && pre.id === queue[0].id)) return;
-  const el = players.find(p => p !== active);
-  el.src = API + "/clip/" + queue[0].id; el.preload = "auto"; el.load(); pre = {id: queue[0].id, el};
-}
-function playNext(){
-  if (!listening || paused || playing || !queue.length) return;
-  const c = queue.shift();
-  let el;
-  if (pre && pre.id === c.id) el = pre.el; else { el = players.find(p => p !== active) || players[0]; el.src = API + "/clip/" + c.id; }
-  pre = null; active = el; playing = true;
-  if (!ctx) el.volume = vol;
-  showClip(c);
-  el.play().catch(() => { playing = false; });
-  preload();
-}
-players.forEach(p => {
-  p.onended = () => { playing = false; playNext(); };
-  p.onerror = () => { if (p === active){ playing = false; setTimeout(playNext, 400); } };
-});
+const other = () => players.find(p => p !== active);
+function stopAll(){ players.forEach(p => { p.pause(); p.onended = null; p.ontimeupdate = null; }); }
 
-function tag(b){ return b ? `${b.half === "top" ? "Top" : "Bottom"} ${ord(b.inning)}` : "Pregame"; }
-function showClip(c){
-  if (current){ log.unshift(current); log = log.slice(0, 40); renderLog(); }
+// ---------------- what's on screen
+function setOnAir(on, text){
+  $("stage").classList.toggle("on", on);
+  $("airtext").textContent = text || (on ? "On the air" : "Off the air");
+  if (on && !bars.length){
+    const m = document.createElement("span"); m.className = "meter"; m.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 4; i++){ const b = document.createElement("b"); bars.push(b); m.append(b); }
+    document.querySelector(".air").append(m);
+  }
+  const meter = document.querySelector(".meter"); if (meter) meter.hidden = !on;
+}
+function setTitle(num, away, home, kind){
+  const kick = $("kick"), title = $("title");
+  kick.innerHTML = '<span class="chip gold">2026 World Series</span>';
+  if (!num){ title.innerHTML = 'Brewers baseball<small>on the radio, called by Bob</small>'; return; }
+  const chip = document.createElement("span");
+  chip.className = "chip" + (kind === "live" ? " live" : ""); chip.textContent = kind === "live" ? "Live" : kind === "score" ? "Live score" : "Replay";
+  kick.append(chip);
+  title.innerHTML = ""; title.append("Game " + num);
+  const sm = document.createElement("small"); sm.textContent = `${short(away)} at ${short(home)}`; title.append(sm);
+}
+function tag(b, kind){
+  if (kind === "intro" || kind === "pregame") return "Pregame";
+  if (kind === "final") return "Final";
+  return b ? `${b.half === "top" ? "Top" : "Bottom"} ${ord(b.inning)}` : "Pregame";
+}
+function showLine(c){
+  if (current && current !== c){ log.unshift(current); log = log.slice(0, 60); renderLog(); }
   current = c;
   const cap = $("caption"); cap.classList.remove("idle");
   cap.innerHTML = '<span class="who">Bob, on the call</span>'; cap.append(c.text);
   if (c.board) renderBoard(c.board);
 }
 function renderLog(){
+  if (!log.length){ $("log").innerHTML = '<li><span class="empty">Nothing yet. Press Listen and Bob\'s calls will collect here.</span></li>'; return; }
   $("log").replaceChildren(...log.map(c => {
     const li = document.createElement("li");
     li.innerHTML = '<span class="t"></span><span class="x"></span>';
-    li.querySelector(".t").textContent = c.kind === "intro" ? "Pregame" : c.kind === "final" ? "Final" : tag(c.board);
+    li.querySelector(".t").textContent = tag(c.board, c.kind);
     li.querySelector(".x").textContent = c.text;
     return li;
   }));
 }
-function setOnAir(on){
-  $("stage").classList.toggle("on", on);
-  $("airtext").textContent = on ? "On the air" : "Off the air";
-  if (on && !bars.length){
-    const m = document.createElement("span"); m.className = "meter"; m.setAttribute("aria-hidden", "true");
-    for (let i = 0; i < 4; i++){ const b = document.createElement("b"); bars.push(b); m.append(b); }
-    document.querySelector(".air").append(m);
-  }
-  document.querySelector(".meter") && (document.querySelector(".meter").hidden = !on);
-}
-function setTitle(label){
-  const m = /^Game (\d+): (.+) at (.+) - (live|replay)/.exec(label || "");
-  const kick = $("kick"), title = $("title");
-  if (!m){
-    kick.innerHTML = '<span class="chip gold">2026 World Series</span>';
-    title.innerHTML = 'Brewers baseball<small>on the radio, called by Bob</small>'; return;
-  }
-  kick.innerHTML = '<span class="chip gold">2026 World Series</span>' + (m[4] === "live" ? '<span class="chip live">Live</span>' : '<span class="chip">Replay</span>');
-  title.innerHTML = ""; title.append("Game " + m[1]);
-  const sm = document.createElement("small"); sm.textContent = `${short(m[2])} at ${short(m[3])}`; title.append(sm);
-}
+function idle(text){ const cap = $("caption"); cap.classList.add("idle"); cap.textContent = text; }
+function setPower(on){ $("powericon").innerHTML = on ? ICON_STOP : ICON_PLAY; $("powertext").textContent = on ? "Stop" : "Listen"; }
 
-// ----- scoreboard -----
+// ---------------- scoreboard
 function renderBoard(b){
   const n = Math.max(9, b.line.away.length, b.line.home.length);
   const t = document.createElement("table"); t.className = "sb";
@@ -426,141 +443,145 @@ function renderBoard(b){
     const H = r.insertCell(); H.className = "tot"; H.textContent = b.hits[side];
   }
   $("sbwrap").replaceChildren(t);
-  $("situ").hidden = false; $("sbnote").hidden = !b.empty;
-  $("inn").textContent = `${b.half === "top" ? "Top" : "Bottom"} of the ${ord(b.inning)}`;
+  $("situ").hidden = !!b.empty; $("sbnote").hidden = !b.empty;
+  $("inn").textContent = b.empty ? "" : `${b.half === "top" ? "Top" : "Bottom"} of the ${ord(b.inning)}`;
   ["b1","b2","b3"].forEach((id, i) => $(id).classList.toggle("on", !!b.bases[i]));
   ["o1","o2","o3"].forEach((id, i) => $(id).classList.toggle("on", i < b.outs));
   $("batter").textContent = b.batter || "";
   $("pitcher").textContent = b.pitcher || "";
+  $("count").textContent = b.balls == null ? "" : `${b.balls} and ${b.strikes}`;
+}
+function emptyBoard(){
+  renderBoard({empty:true, ab:{away:"AWAY", home:"HOME"}, line:{away:[], home:[]}, score:{away:"", home:""}, hits:{away:"", home:""}, inning:0, half:"top", bases:[0,0,0], outs:0});
 }
 
-// ----- straight from MLB, for when Bob's studio is off -----
-const MLB = "https://statsapi.mlb.com/api/v1";
-let offairTitle = false;
-async function mlbGames(){
-  const j = await (await fetch(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`, {cache:"no-store"})).json();
-  const out = [];
-  (j.dates || []).forEach(d => d.games.forEach(g => {
-    const a = g.teams.away, h = g.teams.home, ls = g.linescore || {};
-    out.push({pk: g.gamePk, num: g.seriesGameNumber || out.length + 1, date: g.gameDate, state: g.status.abstractGameState,
-      away: a.team.name, home: h.team.name, awayAb: a.team.abbreviation, homeAb: h.team.abbreviation,
-      awayRuns: a.score, homeRuns: h.score, inning: ((ls.inningHalf || "") + " " + (ls.currentInningOrdinal || "")).trim()});
-  }));
-  return out;
-}
-async function mlbLive(g){
+// ---------------- live: one shared timeline
+const L = {clips: [], last: 0, played: 0, offset: null, rtt: 1e9, timer: null};
+const serverNow = () => Date.now() / 1000 + (L.offset || 0);
+async function pollStudio(){
+  if (!API) return false;
   try{
-    const ls = await (await fetch(`${MLB}/game/${g.pk}/linescore`, {cache:"no-store"})).json();
-    const line = {away: [], home: []};
-    (ls.innings || []).forEach(i => { line.away[i.num - 1] = i.away && i.away.runs != null ? i.away.runs : null;
-                                      line.home[i.num - 1] = i.home && i.home.runs != null ? i.home.runs : null; });
-    const o = ls.offense || {}, d = ls.defense || {};
-    renderBoard({ab: {away: g.awayAb || short(g.away).slice(0, 3).toUpperCase(), home: g.homeAb || short(g.home).slice(0, 3).toUpperCase()},
-      line, score: {away: ls.teams.away.runs || 0, home: ls.teams.home.runs || 0}, hits: {away: ls.teams.away.hits || 0, home: ls.teams.home.hits || 0},
-      inning: ls.currentInning || 1, half: (ls.inningHalf || "Top").toLowerCase() === "top" ? "top" : "bottom",
-      bases: [o.first ? 1 : 0, o.second ? 1 : 0, o.third ? 1 : 0], outs: ls.outs || 0,
-      batter: o.batter ? o.batter.fullName : "", pitcher: d.pitcher ? d.pitcher.fullName : ""});
-    setTitle(`Game ${g.num}: ${g.away} at ${g.home} - live`); offairTitle = true;
-    const k = $("kick"); k.innerHTML = '<span class="chip gold">2026 World Series</span><span class="chip live">Live score</span>';
-  }catch(e){}
+    const t0 = Date.now();
+    const j = await (await fetch(`${API}/live?since=${L.last}`, {cache:"no-store"})).json();
+    const t1 = Date.now(), rtt = t1 - t0;
+    if (rtt < L.rtt * 1.5 || L.offset === null){ L.offset = j.now - (t0 + t1) / 2000; L.rtt = Math.min(L.rtt, rtt); }
+    for (const c of j.clips){ if (c.id > L.last){ L.clips.push(c); L.last = c.id; } }
+    L.clips = L.clips.filter(c => c.at + c.dur > serverNow() - 120);
+    studio = j;
+    return true;
+  }catch(e){ return false; }
 }
-
-// ----- Bob's studio -----
-async function poll(){
-  if (API === null && !(await findStudio())){
-    setOnAir(false); $("power").disabled = true;
-    const live = gamesCache.find(g => g.state === "Live");
-    $("status").textContent = live
-      ? "Bob's studio is switched off right now, so this is the live score straight from MLB. It updates by itself."
-      : "Bob is off the air. His studio computer is switched off right now. Check back at game time.";
-    if (live) await mlbLive(live); else if (offairTitle) { setTitle(""); offairTitle = false; }
-    setTimeout(poll, live ? 15000 : 30000); return;
+function liveTick(){
+  clearTimeout(L.timer);
+  if (mode !== "live" || !listening || paused) return;
+  const now = serverNow();
+  const playingNow = !active.paused && !active.ended && active.dataset.id;
+  if (!playingNow){
+    const c = L.clips.find(c => c.id > L.played && c.at + c.dur > now + 0.4);
+    if (c){
+      const el = other().dataset.id == c.id ? other() : active;
+      if (el.dataset.id != c.id){ el.src = `${API}/${c.url}`; el.dataset.id = c.id; el.load(); }
+      if (c.at <= now + 0.05){
+        L.played = c.id; active = el;
+        const late = now - c.at;
+        if (late > 0.6 && isFinite(el.duration)) el.currentTime = Math.min(late, el.duration - 0.2);
+        else if (late > 0.6) el.addEventListener("loadedmetadata", () => { el.currentTime = Math.min(serverNow() - c.at, el.duration - 0.2); }, {once:true});
+        el.onended = () => { el.dataset.id = ""; liveTick(); };
+        el.play().catch(() => {});
+        showLine(c);
+        const nxt = L.clips.find(x => x.id > c.id);          // load the next one on the other player
+        if (nxt){ const o = other(); if (o.dataset.id != nxt.id){ o.src = `${API}/${nxt.url}`; o.dataset.id = nxt.id; o.load(); } }
+      }
+    }
   }
-  try{
-    state = await (await api("state")).json();
-    $("power").disabled = false;
-    if (state.gen !== gen){ gen = state.gen; queue = []; last = 0; pre = null; players.forEach(p => p.pause()); playing = false; }
-    const fresh = await (await api(`since/${gen}/${last}`)).json();
-    fresh.forEach(c => { queue.push(c); last = c.id; });
-    const on = !!state.pk;
-    setOnAir(listening && on);
-    setTitle(on ? state.label : "");
-    $("status").textContent = on ? (listening ? "You're listening. Bob's words appear above as he speaks." : "Bob is broadcasting. Press Listen to tune in.") : "Bob's studio is ready. Press Listen, or pick a game below.";
-    if (playing) preload(); else playNext();
-  }catch(e){
-    API = SAME ? "" : null;
-    $("status").textContent = "Lost the signal. Trying again in a moment.";
-  }
-  setTimeout(poll, 2000);
+  L.timer = setTimeout(liveTick, 150);
+}
+function startLive(){
+  initAudio(); stopAll(); mode = "live"; listening = true; paused = false; setPower(true);
+  log = []; current = null; renderLog(); $("jump").hidden = true;
+  L.played = 0; players.forEach(p => p.dataset.id = "");
+  const s = studio || {}; const g = s.game || {};
+  setTitle(g.num, g.away, g.home, "live");
+  idle("Tuning in to Bob. He'll be with you in a moment.");
+  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
+  setOnAir(true);
+  liveTick();
 }
 
-const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
-const timeFmt = d => new Date(d).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
-let gamesCache = [];
-async function loadGames(){
-  const studio = API !== null;
+// ---------------- replays: one MP3 per half inning + a timeline
+const R = {game: null, idx: 0, line: -1, base: ""};
+const missing = {};
+async function loadReplay(num){
+  if (replays[num] && replays[num].meta) return replays[num].meta;
+  if (missing[num] && Date.now() - missing[num] < 300000) return null;     // check again every 5 minutes
   try{
-    gamesCache = studio ? await (await api("games")).json() : await mlbGames();
-    const box = $("games"); box.replaceChildren();
-    if (!gamesCache.length) box.innerHTML = "<p>No Brewers World Series games are listed yet.</p>";
-    gamesCache.forEach(g => {
-      const live = g.state === "Live", fin = g.state === "Final";
-      const a = short(g.away), h = short(g.home);
-      const tk = document.createElement("article");
-      tk.className = "tk" + (state && state.pk === g.pk ? " tuned" : "");
-      tk.innerHTML = '<div><div class="tk-top"><span class="n display"></span><span class="d"></span></div></div><div><p class="m"></p><p class="s"></p></div><div class="tk-actions"></div>';
-      tk.querySelector(".n").textContent = "Game " + g.num;
-      tk.querySelector(".d").textContent = dateFmt(g.date);
-      tk.querySelector(".m").textContent = `${a} at ${h}`;
-      const s = tk.querySelector(".s");
-      if (live){ s.className = "s live"; s.textContent = "On now, " + g.inning.toLowerCase(); }
-      else if (fin){ s.className = "s fin"; s.innerHTML = "Final: <b></b>"; s.querySelector("b").textContent = `${a} ${g.awayRuns}, ${h} ${g.homeRuns}`; }
-      else s.textContent = "First pitch " + timeFmt(g.date);
-      const add = (label, mode, alt) => { const b = document.createElement("button"); b.textContent = label; if (alt) b.className = "alt"; b.onclick = () => tune(g.pk, mode); tk.querySelector(".tk-actions").append(b); };
-      if (!studio){ const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob is off the air right now."; tk.querySelector(".tk-actions").append(n); }
-      else if (live){ add("Listen live", "live"); add("From the first pitch", "replay", true); }
-      else if (fin) add("Play this game", "replay");
-      else add("Wait for first pitch", "live", true);
-      box.append(tk);
-    });
-  }catch(e){}
-  setTimeout(loadGames, studio ? 30000 : 60000);
+    const r = await fetch(`replays/game-${num}/game.json`, {cache:"no-cache"});
+    if (!r.ok){ missing[num] = Date.now(); return null; }
+    const meta = await r.json();
+    replays[num] = {meta}; return meta;
+  }catch(e){ missing[num] = Date.now(); return null; }
 }
-
-async function tune(pk, mode){
-  initAudio();
-  await api("play", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({pk, mode})});
-  log = []; current = null; $("log").innerHTML = '<li><span class="empty">Bob\'s calls will collect here as he goes.</span></li>';
-  startListening(); setTimeout(loadGames, 400);
+async function startReplay(num, chunk){
+  const meta = await loadReplay(num);
+  if (!meta) return;
+  initAudio(); stopAll(); mode = "replay"; listening = true; paused = false; setPower(true);
+  R.game = meta; R.base = `replays/game-${num}/`; R.idx = chunk || 0; R.line = -1;
+  log = []; current = null; renderLog(); emptyBoard();
+  setTitle(meta.num, meta.away, meta.home, "replay");
+  setOnAir(true, "Replay");
+  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
+  renderJump();
+  playChunk();
   window.scrollTo({top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
 }
-function setPower(on){
-  $("powericon").innerHTML = on ? ICON_STOP : ICON_PLAY;
-  $("powertext").textContent = on ? "Stop" : "Listen";
+function playChunk(){
+  const ch = R.game.chunks[R.idx];
+  if (!ch){ idle("That's the end of the replay. Thanks for listening."); listening = false; setPower(false); setOnAir(false); $("pause").hidden = true; return; }
+  const want = R.base + ch.file;
+  const pre = other();
+  const el = pre.dataset.src === want ? pre : active;
+  if (el.dataset.src !== want){ el.src = want; el.dataset.src = want; }
+  active = el; R.line = -1;
+  el.ontimeupdate = () => {
+    const t = el.currentTime; let k = R.line;
+    while (k + 1 < ch.lines.length && ch.lines[k + 1].t <= t + 0.05) k++;
+    if (k !== R.line && k >= 0){ R.line = k; showLine(ch.lines[k]); }
+  };
+  el.onended = () => { R.idx++; playChunk(); };
+  el.play().catch(() => {});
+  markJump();
+  const nxt = R.game.chunks[R.idx + 1];               // load the next half inning on the other player
+  if (nxt){ const o = other(); const u = R.base + nxt.file; if (o.dataset.src !== u){ o.src = u; o.dataset.src = u; o.preload = "auto"; o.load(); } }
 }
-function startListening(){
-  listening = true; paused = false; setPower(true);
-  $("pause").hidden = false; $("pause").querySelector("span").textContent = "Pause";
-  const cap = $("caption"); cap.classList.add("idle"); cap.textContent = "Bob is settling in at the microphone. He'll start in a few seconds.";
-  playNext();
+function renderJump(){
+  const box = $("jump"); box.replaceChildren(); box.hidden = false;
+  const lab = document.createElement("span"); lab.className = "lbl"; lab.textContent = "Jump to"; box.append(lab);
+  R.game.chunks.forEach((ch, i) => {
+    const b = document.createElement("button"); b.textContent = ch.label.replace("Bottom", "Bot");
+    b.onclick = () => { stopAll(); players.forEach(p => p.dataset.src = ""); R.idx = i; log = []; current = null; renderLog(); playChunk(); };
+    box.append(b);
+  });
+}
+function markJump(){ [...$("jump").querySelectorAll("button")].forEach((b, i) => b.setAttribute("aria-current", i === R.idx ? "true" : "false")); }
+
+// ---------------- controls
+function stopListening(msg){
+  listening = false; paused = false; stopAll(); setPower(false); $("pause").hidden = true; setOnAir(false);
+  players.forEach(p => { p.dataset.id = ""; p.dataset.src = ""; });
+  idle(msg || "Bob is turned off on this device. Press Listen to hear him again.");
 }
 $("power").onclick = () => {
-  if (listening){
-    listening = false; players.forEach(p => p.pause()); playing = false; queue = []; pre = null; setPower(false);
-    $("pause").hidden = true; setOnAir(false);
-    const cap = $("caption"); cap.classList.add("idle"); cap.textContent = "Bob is turned off on this device. Press Listen to hear him again."; return;
-  }
-  initAudio();
-  if (state && state.pk){ startListening(); return; }
-  const live = gamesCache.find(g => g.state === "Live");
-  const lastFinal = [...gamesCache].reverse().find(g => g.state === "Final");
-  const pick = live || lastFinal;
-  if (pick) tune(pick.pk, live ? "live" : "replay"); else startListening();
+  if (listening){ stopListening(); mode = null; return; }
+  if (studio && studio.on) return startLive();
+  const done = games.filter(g => g.state === "Final" && replays[g.num]).pop();
+  if (done) return startReplay(done.num, 0);
+  idle("Bob isn't on the air right now and there's no replay saved yet. Check back at game time.");
 };
 $("pause").onclick = () => {
   paused = !paused; $("pause").querySelector("span").textContent = paused ? "Resume" : "Pause";
-  if (paused){ if (active) active.pause(); }
-  else if (playing && active) active.play().catch(() => {}); else playNext();
+  if (paused){ active.pause(); clearTimeout(L.timer); return; }
+  if (mode === "live"){ stopAll(); players.forEach(p => p.dataset.id = ""); L.played = 0; liveTick(); }   // live picks up at the live point
+  else active.play().catch(() => {});
 };
 function setVol(v){
   vol = Math.max(0, Math.min(1, Math.round(v * 10) / 10));
@@ -570,10 +591,119 @@ function setVol(v){
 $("quieter").onclick = () => setVol(vol - .1);
 $("louder").onclick = () => setVol(vol + .1);
 
-if (new URLSearchParams(location.search).has("auto")){ listening = true; setPower(true); }
-renderBoard({empty:true, ab:{away:"AWAY", home:"HOME"}, line:{away:[], home:[]}, score:{away:"", home:""}, hits:{away:"", home:""}, inning:0, half:"top", bases:[0,0,0], outs:0});
-$("situ").hidden = true; $("inn").textContent = "";
-poll(); loadGames();
+// ---------------- the schedule (straight from MLB) and the ticket cards
+async function mlbGames(){
+  const j = await (await fetch(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`, {cache:"no-store"})).json();
+  const out = [];
+  (j.dates || []).forEach(d => d.games.forEach(g => {
+    const a = g.teams.away, h = g.teams.home, ls = g.linescore || {};
+    out.push({pk: g.gamePk, num: g.seriesGameNumber || out.length + 1, date: g.gameDate, state: g.status.abstractGameState,
+      away: a.team.name, home: h.team.name, awayAb: a.team.abbreviation, homeAb: h.team.abbreviation,
+      awayRuns: a.score, homeRuns: h.score, inning: ((ls.inningHalf || "") + " " + (ls.currentInningOrdinal || "")).trim()});
+  }));
+  return out.sort((x, y) => x.num - y.num);
+}
+async function mlbLive(g){
+  try{
+    const ls = await (await fetch(`${MLB}/game/${g.pk}/linescore`, {cache:"no-store"})).json();
+    const line = {away: [], home: []};
+    (ls.innings || []).forEach(i => { line.away[i.num - 1] = i.away && i.away.runs != null ? i.away.runs : null;
+                                      line.home[i.num - 1] = i.home && i.home.runs != null ? i.home.runs : null; });
+    const o = ls.offense || {}, d = ls.defense || {};
+    renderBoard({ab: {away: g.awayAb, home: g.homeAb}, line, score: {away: ls.teams.away.runs || 0, home: ls.teams.home.runs || 0},
+      hits: {away: ls.teams.away.hits || 0, home: ls.teams.home.hits || 0}, inning: ls.currentInning || 1,
+      half: (ls.inningHalf || "Top").toLowerCase() === "top" ? "top" : "bottom", bases: [o.first ? 1 : 0, o.second ? 1 : 0, o.third ? 1 : 0],
+      outs: ls.outs || 0, balls: ls.balls, strikes: ls.strikes, batter: o.batter ? o.batter.fullName : "", pitcher: d.pitcher ? d.pitcher.fullName : ""});
+    setTitle(g.num, g.away, g.home, "score");
+  }catch(e){}
+}
+function renderGames(){
+  const liveKey = studio && studio.on && studio.game ? studio.game.pk : 0;
+  const sig = JSON.stringify([games.map(g => [g.pk, g.state, g.inning, !!replays[g.num]]), liveKey, mode, R.game && R.game.num, [...revealed], !!(studio && studio.on)]);
+  if (sig === gamesSig) return;
+  gamesSig = sig;
+  const box = $("games"); box.replaceChildren();
+  if (!games.length){ box.innerHTML = "<p>No Brewers World Series games are listed yet.</p>"; return; }
+  const liveGame = studio && studio.on && studio.game ? studio.game.pk : null;
+  games.forEach(g => {
+    const live = g.state === "Live" || g.pk === liveGame, fin = g.state === "Final" && g.pk !== liveGame;
+    const tk = document.createElement("article");
+    tk.className = "tk" + ((mode === "live" && live) || (mode === "replay" && R.game && R.game.num === g.num) ? " tuned" : "");
+    tk.innerHTML = '<div><div class="tk-top"><span class="n display"></span><span class="d"></span></div></div><div><p class="m"></p><p class="s"></p></div><div class="tk-actions"></div>';
+    tk.querySelector(".n").textContent = "Game " + g.num;
+    tk.querySelector(".d").textContent = dateFmt(g.date);
+    tk.querySelector(".m").textContent = `${short(g.away)} at ${short(g.home)}`;
+    const s = tk.querySelector(".s"), act = tk.querySelector(".tk-actions");
+    const btn = (label, fn, alt) => { const b = document.createElement("button"); b.textContent = label; if (alt) b.className = "alt"; b.onclick = fn; act.append(b); return b; };
+    if (live){
+      s.className = "s live"; s.textContent = g.state === "Live" ? "On now" + (g.inning ? ", " + g.inning.toLowerCase() : "") : "Bob is on the air";
+      if (studio && studio.on) btn("Listen live", startLive);
+      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's studio is off, so the board above shows the live score."; act.append(n); }
+    } else if (fin){
+      s.className = "s fin"; s.textContent = "Final. ";
+      if (revealed.has(g.num)) s.append(Object.assign(document.createElement("b"), {textContent: `${short(g.away)} ${g.awayRuns}, ${short(g.home)} ${g.homeRuns}`}));
+      else {
+        const show = document.createElement("button"); show.className = "reveal"; show.textContent = "Show score";
+        show.setAttribute("aria-label", `Show the final score of Game ${g.num}`);
+        show.onclick = () => { revealed.add(g.num); renderGames(); };
+        s.append(show);
+      }
+      if (replays[g.num]) btn("Play the replay", () => startReplay(g.num, 0));
+      else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's replay of this game is coming soon."; act.append(n); }
+    } else {
+      const fp = new Date(g.date).getTime();
+      s.textContent = `First pitch ${timeFmt(fp)}. Bob goes on the air at ${timeFmt(fp - 30 * 60000)}.`;
+    }
+    box.append(tk);
+  });
+}
+
+// ---------------- the main loop
+let lastGames = 0, lastFind = 0;
+async function loop(){
+  const now = Date.now();
+  if (now - lastGames > 30000){
+    lastGames = now;
+    try{ games = await mlbGames(); }catch(e){}
+    await Promise.all(games.filter(g => g.state === "Final").map(g => loadReplay(g.num)));
+  }
+  if (!API && now - lastFind > 20000){ lastFind = now; API = await findStudio(); }
+  const ok = API ? await pollStudio() : false;
+  if (API && !ok){ API = null; studio = null; }
+  const s = studio;
+  if (mode === "live" && listening){
+    if (!s || !s.on){ setOnAir(false); $("status").textContent = "Lost Bob's signal. Trying again in a moment; the live score is below."; }
+    else { setOnAir(true); $("status").textContent = "You're listening live, about " + Math.round(s.delay || 15) + " seconds behind the ballpark. Bob's words appear above as he speaks."; }
+  } else if (mode === "replay" && listening){
+    $("status").textContent = `Replay of Game ${R.game.num}. Use the inning buttons to jump around.`;
+  } else if (s && s.on){
+    $("stage").classList.add("on"); $("airtext").textContent = "On the air";
+    const g = s.game || {}; setTitle(g.num, g.away, g.home, "live");
+    if (s.board) renderBoard(s.board);
+    $("status").textContent = "Bob is on the air. Press Listen to tune in.";
+  } else {
+    setOnAir(false);
+    const liveG = games.find(g => g.state === "Live");
+    if (s && !s.on){
+      const m = /on the air at (\S+)/.exec(s.status || "");
+      $("status").textContent = m ? `Bob's studio is warming up. He goes on the air at ${timeFmt(m[1])}.` : "Bob's studio is warming up.";
+    } else if (liveG){
+      $("status").textContent = "Bob's studio is off right now, so the board shows the live score straight from MLB.";
+    } else {
+      const nxt = games.find(g => g.state !== "Final");
+      $("status").textContent = nxt ? `Bob is off the air. Next broadcast: Game ${nxt.num}, ${dateFmt(nxt.date)} at ${timeFmt(new Date(nxt.date).getTime() - 30 * 60000)}. Replays of finished games play any time.`
+                                    : "Bob is off the air. Replays of finished games play any time.";
+    }
+    if (liveG && !listening) await mlbLive(liveG);
+  }
+  renderGames();
+  setTimeout(loop, mode === "live" && listening ? 1500 : 3000);
+}
+
+if (new URLSearchParams(location.search).has("auto")) document.addEventListener("click", () => $("power").click(), {once:true});
+emptyBoard();
+loop();
 </script>
+
 </body>
 </html>

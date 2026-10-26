@@ -304,6 +304,10 @@ class Writer:
                         break
                     if "thinking" in s.lower() or "INVALID_ARGUMENT" in s:
                         continue
+                    if "503" in s or "UNAVAILABLE" in s or "overloaded" in s.lower() or "500" in s:
+                        self.cool[m] = time.time() + 30          # busy right now; use the next model for a bit
+                        log(f"writer: {m} is busy; trying the next model")
+                        break
                     log("writer error:", s[:200])
                     break
         self.fail += 1
@@ -583,9 +587,9 @@ class Box:
     def board(s):
         if not s.started:
             return None
-        return {"ab": s.ab, "team": s.team, "line": s.line, "hits": s.hits, "score": s.score, "outs": min(s.outs, 3),
+        return json.loads(json.dumps({"ab": s.ab, "team": s.team, "line": s.line, "hits": s.hits, "score": s.score, "outs": min(s.outs, 3),
                 "bases": s.bases, "inning": s.inning, "half": s.half, "batter": s.batter, "pitcher": s.pitcher,
-                "balls": s.balls, "strikes": s.strikes}
+                "balls": s.balls, "strikes": s.strikes}))          # a frozen copy: later plays must not change it
 
     def key(s):
         return f"{'t' if s.half == 'top' else 'b'}{s.inning}"
@@ -878,8 +882,9 @@ class Director:
                                                              ("pregame", "Share a gentle remark about life in the booth on a World Series night.", [])])
             extra = self.share_item() if extra == "item" else [x.format(**names) for x in extra]
             fallback = f"Hello everybody, Bob here with World Series Game {self.game['num']}." if k == 0 else ""
-            secs = 26 if left > 120 else max(8, left / 3)
-            self.say(task.format(**names), "\n".join(self.game_facts() + extra), fallback, kind, secs, pause=0.35 if k == 0 else 3.0)
+            secs = 24 if left > 120 else max(8, left / 3)
+            self.say("The game has not started yet, so do not describe any pitch, count or play. " + task.format(**names),
+                     "\n".join(self.game_facts() + extra), fallback, kind, secs, pause=0.35 if k == 0 else 3.0)
             k += 1
             if not self.render:
                 # a relaxed pregame: a segment roughly every minute, leaving room for the next to be ready in time
