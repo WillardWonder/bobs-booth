@@ -833,7 +833,7 @@ class Recorder:
 
     def __init__(self, root, meta):
         self.root = root; os.makedirs(root, exist_ok=True)
-        self.meta = dict(meta, chunks=[], complete=False)
+        self.meta = dict(meta, chunks=[], complete=False, made=round(time.time()))
         self.cur, self.parts, self.lock = None, [], threading.Lock()
 
     def add(self, c, wav_path):

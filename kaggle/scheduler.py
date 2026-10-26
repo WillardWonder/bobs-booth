@@ -110,9 +110,15 @@ def collect():
         if not m.get("complete"):
             log(name, "is not complete; skipping")
             continue
-        if have_replay(m["num"]):
-            continue
         dst = os.path.join(ROOT, "replays", name)
+        if have_replay(m["num"]):
+            try:
+                old_made = json.load(open(os.path.join(dst, "game.json"))).get("made", 0)
+            except Exception:
+                old_made = 0
+            if m.get("made", 0) <= old_made:
+                continue
+            log(name, "has a newer render; replacing the saved replay")
         shutil.rmtree(dst, ignore_errors=True)
         shutil.copytree(src, dst)
         added.append(m["num"])
