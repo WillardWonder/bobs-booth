@@ -139,7 +139,7 @@ FACTS = [
 ]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
           "Keep it brisk and punchy.", "Let it breathe a little: warm and unhurried.",
-          "Work in one dry, self-deprecating joke about yourself.", "Use a vivid verb for the pitch or the contact.",
+"Use a vivid verb for the pitch or the contact.",
           "Mention the score or the runners naturally.", "Sound like you are leaning toward the microphone."]
 HITS = {"single", "double", "triple", "home_run"}
 NOT_AB = {"walk", "intent_walk", "hit_by_pitch", "sac_fly", "sac_bunt", "catcher_interf", "sac_fly_double_play", "sac_bunt_double_play"}
@@ -149,11 +149,12 @@ How Bob sounds:
 - Routine pitches and plays get a short, understated call, sometimes with a wry little aside.
 - Big moments build: the windup, the swing, the ball in flight, stretch one word as it carries, then let it land, then give the score.
 - Paint the picture for someone who cannot see it: where the ball went, who ran, who made the play.
-- Fills quiet stretches the way an old radio man does: the count and the situation, a note about the hitter or pitcher, a story.
-- Self-deprecating humor about Bob's own made-up playing days as a forgettable backup catcher in the low minors: splinters from the bench, a batting average nobody should repeat, managers who forgot his name.
+- Fills quiet stretches the way an old radio man does: the count and the situation, a real note about the hitter or pitcher from the facts, the series, a bit of Brewers history, and only now and then a story.
+- Now and then, not every break: self-deprecating humor about Bob's own made-up playing days as a forgettable backup catcher in the low minors. Never the same joke or story twice in a game.
 - Folksy, old-fashioned phrasing. Talks to the listener directly now and then.
 - Never repeats himself: vary sentence openings, verbs, and jokes.
 Rules: use ONLY the game facts you are given; never invent stats, names, injuries, weather, crowd size or events about real people.
+When you talk about a player, use only the background and the numbers in the Facts, exactly as given. If the Facts give no numbers for him, mention no numbers.
 Use the exact count, outs, runners and score from the facts. Never say strike three, ball four, or that a batter is out or on base unless the facts say so.
 The only made-up material allowed is Bob's own harmless tall tales about himself. Do not use any real broadcaster's catchphrases.
 Keep it clean and family-friendly, like a broadcast grandparents and kids enjoy together. Never use words or phrasing that could read as a double meaning;
@@ -167,7 +168,8 @@ BIG = (" This is a big moment. Write it in two parts separated by a single | cha
 MOOD = {"good": " It's great news for the Brewers, so after the | Bob lets it fly and celebrates.",
         "bad": " It's bad news for the Brewers, so after the | Bob reacts with loud, pained disbelief, never cheering for the other team."}
 PITCH = ("Call the pitch or pitches below as they happen, like live radio: the pitch, then the count after it, in a few words. "
-         "The at-bat is still going. If the length allows, add a little color: the situation, the hitter, the pitcher, or a dry aside.")
+         "The at-bat is still going. If the length allows, add a little color from the facts: the situation, the hitter or the pitcher. "
+         "No stories or jokes about yourself in a pitch call.")
 RESULT = ("Call how this plate appearance ended, like live radio: the decisive pitch, the result with energy that fits how big it is, "
           "then the score or situation if it changed. A routine out gets a brisk call; a hit, run or strikeout gets more.")
 ACTION = "Something happened on the field between pitches. Tell listeners briefly and naturally, then come back to the game."
@@ -177,8 +179,9 @@ BREAK = ("That ends the half inning. Wrap it up warmly: a quick recap of the hal
          "in your own words if there is one, then lead into the next half.")
 FILL = ("There is a quiet stretch with nothing new on the field (a break, a visit to the mound, a pitching change, or a pause). "
         "Write {n} separate short segments to fill it the way a veteran radio man does, separated by a line with only ||. "
-        "Each segment picks a different ONE of: a short tall tale about your own forgettable playing days, a note about the hitter "
-        "or pitcher from the background, the situation and what each side wants here, the series, or the item to share. "
+        "Each segment picks a different ONE of: a note about the hitter or pitcher using only the background and numbers in the facts, "
+        "the situation and what each side wants here, the series, or the item to share. Only if the facts say a tall tale is allowed, "
+        "one segment may be a short, brand-new tall tale about your own forgettable playing days. "
         "Each segment ends by coming back to the game. Each about {w} words. Do not invent any new play.")
 CATCHUP = ("Several things happened while you were talking. Catch listeners up quickly and smoothly, most important play first, "
            "then the score and the situation now.")
@@ -214,6 +217,38 @@ def bio(g, pid):
     if p.get("nickName"):
         bits.append("nickname " + p["nickName"])
     return ", ".join(b for b in bits if b)
+
+
+def stats_line(g, pid):
+    """A player's real numbers from MLB's box score: this postseason (the box score's season line in a World Series game) and tonight."""
+    try:
+        teams = g["liveData"]["boxscore"]["teams"]
+        pl = next(teams[k]["players"][f"ID{pid}"] for k in ("away", "home") if f"ID{pid}" in teams[k]["players"])
+    except Exception:
+        return ""
+    name = pl.get("person", {}).get("fullName", "")
+    season, today = pl.get("seasonStats") or {}, pl.get("stats") or {}
+    pos = (pl.get("position") or {}).get("abbreviation", "")
+    out = []
+    if pos == "P":
+        sp, tp = season.get("pitching") or {}, today.get("pitching") or {}
+        if sp.get("gamesPlayed"):
+            out.append(f"{name} this postseason: {sp.get('gamesPlayed')} games pitched, {sp.get('inningsPitched', '0')} innings, "
+                       f"earned run average {sp.get('era', '-')}, {sp.get('strikeOuts', 0)} strikeouts, {sp.get('wins', 0)} wins and {sp.get('losses', 0)} losses.")
+        if tp.get("numberOfPitches") or tp.get("battersFaced"):
+            out.append(f"{name} tonight: {tp.get('inningsPitched', '0')} innings, {tp.get('numberOfPitches', 0)} pitches, "
+                       f"{tp.get('strikeOuts', 0)} strikeouts, {tp.get('hits', 0)} hits and {tp.get('earnedRuns', 0)} earned runs allowed.")
+    else:
+        sb, tb = season.get("batting") or {}, today.get("batting") or {}
+        if sb.get("gamesPlayed"):
+            out.append(f"{name} this postseason: batting {sb.get('avg', '-')}, {sb.get('hits', 0)} hits in {sb.get('atBats', 0)} at-bats, "
+                       f"{sb.get('homeRuns', 0)} home runs, {sb.get('rbi', 0)} runs batted in, over {sb.get('gamesPlayed')} games.")
+        if tb.get("plateAppearances"):
+            out.append(f"{name} tonight: {tb.get('hits', 0)} for {tb.get('atBats', 0)}" +
+                       (f", {tb['homeRuns']} home runs" if tb.get("homeRuns") else "") + (f", {tb['rbi']} runs batted in" if tb.get("rbi") else "") + ".")
+    if out:
+        out.append("These are the only numbers about him you may use.")
+    return " ".join(out)
 
 
 def clean(t):
@@ -377,9 +412,71 @@ def num(w):
     return int(w) if w.isdigit() else NUMW[w.lower()]
 
 
+UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+                                    "sixteen seventeen eighteen nineteen".split())}
+TENS = {w: 10 * i for i, w in enumerate("_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()) if w != "_"}
+SAFE_NUMS = {0, 1, 2, 3, 4, 7, 9}           # outs, strikes, balls, four-seamer, best of seven, nine innings
+
+
+def numbers_in(t):
+    """Every number in a line, written as digits or as words, plus the pieces a radio man would say aloud (.281 is two eighty-one)."""
+    t = t.lower().replace("four-seam", "").replace("four seam", "")
+    found = set()
+    for m in re.findall(r"\d*\.\d+|\d+", t):
+        if "." in m:
+            a, b = m.split(".")
+            found |= {int(b)} if b else set()
+            if a:
+                found |= {int(a), int(a + b)}
+            if len(b) == 3:
+                found |= {int(b[0]), int(b[1:]), int(b[:2])}
+        else:
+            n = int(m); found.add(n)
+            if 1000 <= n <= 2100:
+                found |= {n // 100, n % 100}
+    words = re.findall(r"[a-z]+", t.replace("-", " "))
+    i = 0
+    while i < len(words):
+        w = words[i]
+        if w in UNITS or w in TENS:
+            v = UNITS.get(w, TENS.get(w, 0))
+            if w in TENS and i + 1 < len(words) and words[i + 1] in UNITS and 0 < UNITS[words[i + 1]] < 10:
+                v += UNITS[words[i + 1]]; i += 1
+            if i + 1 < len(words) and words[i + 1] == "hundred":
+                v *= 100; i += 1
+                if i + 1 < len(words) and words[i + 1] == "and":
+                    i += 1
+                if i + 1 < len(words) and (words[i + 1] in UNITS or words[i + 1] in TENS):
+                    w2 = words[i + 1]; r = UNITS.get(w2, TENS.get(w2, 0)); i += 1
+                    if w2 in TENS and i + 1 < len(words) and words[i + 1] in UNITS and 0 < UNITS[words[i + 1]] < 10:
+                        r += UNITS[words[i + 1]]; i += 1
+                    v += r
+            found.add(v)
+        i += 1
+    return found
+
+
+def shingles(t, n=6):
+    w = words_of(t)
+    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+
+
+FIRST_PERSON = re.compile(r"\b(I|I'm|I've|I'd|me|my|myself)\b")
+
+
 def check_line(t, allow, mem):
-    """Mistakes a radio man would never make: a count or number of outs that isn't true, or repeating himself."""
+    """Mistakes a radio man would never make: a count or number of outs that isn't true, a number that isn't in the
+    facts, telling the same joke twice, or repeating himself."""
     bad = []
+    if allow and allow.get("nums") is not None:
+        extra = sorted(n for n in numbers_in(caption(t)) if n not in allow["nums"] and n not in SAFE_NUMS)
+        if extra:
+            bad.append("it uses numbers that are not in the facts (" + ", ".join(str(n) for n in extra[:4]) +
+                       "); use only numbers from the facts, or none")
+    if allow and allow.get("told"):
+        mine = shingles(t)
+        if mine and any(mine & shingles(x) for x in allow["told"]):
+            bad.append("it repeats a joke or story you already told tonight; skip the joke or say something new about the game")
     if allow and allow.get("counts") is not None:
         ok = allow["counts"]
         for a, b in COUNT_RE.findall(t):
@@ -405,6 +502,10 @@ def ask(task, facts, mem, fallback, words=None, volume=False, allow=None):
     """volume=True: routine lines (pitches, filler) go to the local model first, saving Gemini's small daily allowance
     for results, inning breaks, big moments and the pregame."""
     recent = ("Your last lines on the air. Do NOT reuse their openings, phrases or jokes:\n" + "\n".join("- " + x for x in mem[-6:]) + "\n\n") if mem else ""
+    told = (allow or {}).get("told") or []
+    if told:
+        recent += ("Jokes and stories you already told tonight. Never tell any of these again or anything like them; "
+                   "if you have nothing new, skip the joke:\n" + "\n".join("- " + " ".join(x.split()[:28]) for x in told[-12:]) + "\n\n")
     size = f" Aim for about {int(words)} words in total." if words else ""
     p = (f"{BOB}\n\n{recent}Style for this one: {random.choice(STYLES)}\n\nTask: {task}{size}\n\nFacts:\n{facts}\n\n"
          "Reply with only the words Bob says on the air.")
@@ -918,6 +1019,7 @@ class Director:
     def __init__(self, g, game, cast, voice, render=False):
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = set(); self.facts_left = list(FACTS)
+        self.told = []; self.said = 0; self.tale_at = -99
         self.seen, self.done = set(), set()
         self.chunk = "pregame"; self.cur_p = None; self.hint = "pitch"; self.pool = []; self.pool_key = None
 
@@ -934,12 +1036,20 @@ class Director:
     def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None, allow=None):
         if allow is None and kind in ("story", "action", "change"):
             allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)}}
+        if not text:
+            allow = dict(allow or {})
+            allow["nums"] = numbers_in(f"{facts}\n{task}") | numbers_in(self.box.situation())
+            allow["told"] = self.told
         text = text or ask(task + (BIG + MOOD.get(hot, "") if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
                            volume=kind in ("pitch", "action", "story") and not hot, allow=allow)
         if not text:
             return None
         wav = self.voice.say(text, hot)
         self.mem.append(caption(text)); del self.mem[:-8]
+        self.said += 1
+        if FIRST_PERSON.search(caption(text)):
+            self.told.append(caption(text)); del self.told[:-40]
+            self.tale_at = self.said
         if self.render:
             not_before = (event_t + 1.5) if event_t else 0.0
         else:
@@ -977,6 +1087,10 @@ class Director:
         for who in (m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")):
             if who and who not in self.people and random.random() < chance:
                 self.people.add(who); out.append("Background you may use one detail from: " + bio(self.g, who))
+            if who:
+                st = stats_line(self.g, who)
+                if st:
+                    out.append("Real numbers from MLB: " + st)
 
     def share_item(self, chance=1.0):
         if self.facts_left and random.random() < chance:
@@ -1070,7 +1184,7 @@ class Director:
         if change and not res:
             a = change[-1]; pid = (a["e"].get("player") or {}).get("id")
             desc = a["e"]["details"].get("description", "")
-            facts = desc + (("\nBackground on the new pitcher: " + bio(self.g, pid)) if pid else "") + "\nSituation: " + self.box.situation()
+            facts = desc + (("\nBackground on the new pitcher: " + bio(self.g, pid) + "\nReal numbers from MLB: " + (stats_line(self.g, pid) or "none; mention no numbers")) if pid else "") + "\nSituation: " + self.box.situation()
             self.say(CHANGE, facts, desc, "change", min(room, 20), event_t=a["t"])
             self.hint = "change"
             rest = [x for x in group if x is not a and x["kind"] != "action"]
@@ -1143,9 +1257,14 @@ class Director:
         if not self.pool or self.pool_key != key:
             facts = ["Situation: " + self.box.situation(), self.series_so_far()] + self.share_item(0.35)
             self.background(facts, chance=0.8)
+            if self.said - self.tale_at >= 25:
+                facts.append("A tall tale is allowed this time.")
             n = 3 if self.hint in ("break", "change") else 1
             w = self.words_for(min(secs, 14))
-            text = ask(FILL.format(n=n, w=int(w)), "\n".join(facts), self.mem, "", words=w * n, volume=True)
+            fj = "\n".join(facts)
+            allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)},
+                     "nums": numbers_in(fj), "told": self.told}
+            text = ask(FILL.format(n=n, w=int(w)), fj, self.mem, "", words=w * n, volume=True, allow=allow)
             self.pool = [s.strip() for s in re.split(r"\n\s*\|\|\s*\n|\s\|\|\s", text or "") if len(s.split()) >= 4]
             self.pool_key = key
         if not self.pool:
