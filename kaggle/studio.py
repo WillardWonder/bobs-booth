@@ -231,7 +231,12 @@ class Writer:
         key = secret("GEMINI_API_KEY")
         if key:
             from google import genai
-            self.client = genai.Client(api_key=key)
+            from google.genai import types
+            try:          # never wait long on one request, and let this code decide what to try next
+                opts = types.HttpOptions(timeout=20000, retry_options=types.HttpRetryOptions(attempts=1))
+            except Exception:
+                opts = types.HttpOptions(timeout=20000)
+            self.client = genai.Client(api_key=key, http_options=opts)
             self.models = self.pick_models()
         elif ON_COLAB:
             try:
