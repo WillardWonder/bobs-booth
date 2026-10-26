@@ -377,7 +377,9 @@ def ask(task, facts, mem, fallback, words=None, volume=False):
     for w in order:
         try:
             kw = {"max_new": int((words or 40) * 1.7) + 30} if w is LOCAL else {}
-            t = clean(w(p, **kw))
+            q = p if w is not LOCAL else (p + "\nOnly mention things listed in the Facts. Do not mention start times, the weather, "
+                                           "the crowd, the date or anything else that is not in the Facts.")
+            t = clean(w(q, **kw))
             if t and RISKY.search(t):
                 t = clean(w(p + "\n\nRewrite this with plainer, family-friendly wording and no possible double meaning: " + t, **kw))
             if t and not RISKY.search(t):
@@ -870,7 +872,7 @@ class Director:
 
     def say(self, task, facts, fallback, kind, secs, hot=False, event_t=None, pause=0.35, text=None):
         text = text or ask(task + (BIG if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
-                           volume=kind in ("pitch", "action", "story", "pregame") and not hot)
+                           volume=kind in ("pitch", "action", "story") and not hot)
         if not text:
             return None
         wav = self.voice.say(text, hot)
