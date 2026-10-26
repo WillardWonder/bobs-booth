@@ -106,7 +106,36 @@ def collect():
     return added
 
 
+def report():
+    """Print the latest run's status and the important lines of its log."""
+    st = status()
+    log("studio status:", st)
+    tmp = os.path.join(ROOT, ".kaggle-log")
+    shutil.rmtree(tmp, ignore_errors=True)
+    code, out = kaggle("kernels", "output", KERNEL, "-p", tmp, "--file-pattern", r".*\.log$")
+    if code != 0:
+        code, out = kaggle("kernels", "output", KERNEL, "-p", tmp)
+    for root, _, files in os.walk(tmp):
+        for f in files:
+            if not f.endswith(".log"):
+                continue
+            text = open(os.path.join(root, f), errors="ignore").read()
+            try:
+                lines = [x.get("data", "") for x in json.loads(text)]
+            except Exception:
+                lines = text.splitlines()
+            keep = [l.rstrip() for chunk in lines for l in chunk.splitlines()
+                    if any(k in l for k in ("mode (", "writer", "local writer", "voice speed", "tunnel", "GPUs", "done.", "rendered",
+                                            "Error", "Traceback", "could not", "WARNING", "Tonight", "No Brewers", "BOB'S STUDIO", "] "))]
+            log(f"--- {f}: {len(keep)} key lines ---")
+            for l in keep[:160]:
+                print(l)
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
+    if ACTION == "status":
+        return report()
     gs = games()
     now = time.time()
     st = status()
