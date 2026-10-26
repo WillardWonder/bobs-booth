@@ -1194,6 +1194,16 @@ def tunnel(port):
 
 def announce(url):
     time.sleep(8)            # a new address takes a few seconds to start answering
+    if MODE != "live":       # tests only check that the tunnel answers; they never post to the public signpost
+        for _ in range(6):
+            try:
+                with urllib.request.urlopen(url + "/live", timeout=15) as r:
+                    log(f"tunnel check: {url} answers ({r.status})")
+                    return
+            except Exception as e:
+                log("tunnel check: not answering yet:", str(e)[:100]); time.sleep(10)
+        log("tunnel check FAILED: listeners could not reach this studio")
+        return
     for _ in range(6):
         try:
             urllib.request.urlopen(urllib.request.Request("https://ntfy.sh/" + TOPIC, data=url.encode(),
@@ -1229,8 +1239,7 @@ def main():
         log(f"Tonight: Game {game['num']}, {game['away']} at {game['home']}, first pitch {game['date']}")
     WRITE = Writer()
     CAST = Broadcast()
-    if MODE == "live":
-        serve()                     # the page finds the studio (and says it's warming up) while the voices load
+    serve()                         # live: the page finds the studio (and says it's warming up) while the voices load
     voice = Voice()
     voice.choose()
     t0 = time.time()
