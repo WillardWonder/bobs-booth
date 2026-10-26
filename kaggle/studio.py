@@ -1087,12 +1087,12 @@ def run_live(game, voice):
     log("broadcast over; replay saved in", cast.recorder.root)
 
 
-def run_render(game, voice, innings=None):
+def run_render(game, voice, innings=None, folder="replays"):
     """Re-call a finished game from MLB data, sized to the real gaps between pitches, and save it as replay files."""
     clock = {"t": 0.0}
     cast = Broadcast(sim=lambda: clock["t"])
     g = feed(game["pk"])
-    root = os.path.join(WORK, "replays", f"game-{game['num']}")
+    root = os.path.join(WORK, folder, f"game-{game['num']}")
     cast.recorder = Recorder(root, game_meta(game, g))
     d = Director(g, game, cast, voice, render=True)
     evs = [e for e in events_of(g, set(), set()) if e["t"]]
@@ -1247,7 +1247,7 @@ def main():
         shutil.rmtree(os.path.join(WORK, "live"), ignore_errors=True)       # keep only the replay files
     elif MODE == "test":
         g1 = next(x for x in series_games() if x["num"] == 1)
-        run_render(g1, voice, innings=int(os.environ.get("BOB_INNINGS", "2")))
+        run_render(g1, voice, innings=int(os.environ.get("BOB_INNINGS", "2")), folder="replays-test")
     else:
         gs = series_games()
         todo = [x for x in gs if str(x["pk"]) in RENDER or str(x["num"]) in RENDER] or [x for x in gs if x["state"] == "Final"]

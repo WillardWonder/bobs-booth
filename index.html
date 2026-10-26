@@ -322,6 +322,7 @@ const TOPIC = "bobs-booth-mke-4q7v2k";
 const MLB = "https://statsapi.mlb.com/api/v1";
 const $ = id => document.getElementById(id);
 const short = name => (name || "").split(" ").pop();
+const get = (url, ms, opts) => fetch(url, Object.assign({cache:"no-store", signal: AbortSignal.timeout ? AbortSignal.timeout(ms || 8000) : undefined}, opts || {}));
 function ord(n){ const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 const timeFmt = t => new Date(t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
 const dateFmt = d => new Date(d).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
@@ -337,12 +338,12 @@ let log = [], current = null, revealed = new Set(), gamesSig = "";
 async function findStudio(){
   if (TEST_STUDIO) return TEST_STUDIO;
   try{
-    const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=12h`, {cache:"no-store"});
+    const r = await get(`https://ntfy.sh/${TOPIC}/json?poll=1&since=12h`);
     const msgs = (await r.text()).trim().split("\n").filter(Boolean).map(l => JSON.parse(l)).filter(m => m.event === "message");
     for (const m of msgs.reverse()){
       const url = (m.message || "").trim();
       if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url)) continue;
-      const ok = await fetch(url + "/live?since=999999999", {cache:"no-store"}).then(r => r.ok).catch(() => false);
+      const ok = await get(url + "/live?since=999999999", 6000).then(r => r.ok).catch(() => false);
       if (ok) return url;
     }
   }catch(e){}
@@ -462,7 +463,7 @@ async function pollStudio(){
   if (!API) return false;
   try{
     const t0 = Date.now();
-    const j = await (await fetch(`${API}/live?since=${L.last}`, {cache:"no-store"})).json();
+    const j = await (await get(`${API}/live?since=${L.last}`, 6000)).json();
     const t1 = Date.now(), rtt = t1 - t0;
     if (rtt < L.rtt * 1.5 || L.offset === null){ L.offset = j.now - (t0 + t1) / 2000; L.rtt = Math.min(L.rtt, rtt); }
     for (const c of j.clips){ if (c.id > L.last){ L.clips.push(c); L.last = c.id; } }
@@ -515,7 +516,7 @@ async function loadReplay(num){
   if (replays[num] && replays[num].meta) return replays[num].meta;
   if (missing[num] && Date.now() - missing[num] < 300000) return null;     // check again every 5 minutes
   try{
-    const r = await fetch(`replays/game-${num}/game.json`, {cache:"no-cache"});
+    const r = await get(`replays/game-${num}/game.json`, 10000, {cache:"no-cache"});
     if (!r.ok){ missing[num] = Date.now(); return null; }
     const meta = await r.json();
     replays[num] = {meta}; return meta;
@@ -593,7 +594,7 @@ $("louder").onclick = () => setVol(vol + .1);
 
 // ---------------- the schedule (straight from MLB) and the ticket cards
 async function mlbGames(){
-  const j = await (await fetch(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`, {cache:"no-store"})).json();
+  const j = await (await get(`${MLB}/schedule?sportId=1&teamId=158&gameType=W&season=2026&hydrate=linescore,team`)).json();
   const out = [];
   (j.dates || []).forEach(d => d.games.forEach(g => {
     const a = g.teams.away, h = g.teams.home, ls = g.linescore || {};
@@ -605,7 +606,7 @@ async function mlbGames(){
 }
 async function mlbLive(g){
   try{
-    const ls = await (await fetch(`${MLB}/game/${g.pk}/linescore`, {cache:"no-store"})).json();
+    const ls = await (await get(`${MLB}/game/${g.pk}/linescore`)).json();
     const line = {away: [], home: []};
     (ls.innings || []).forEach(i => { line.away[i.num - 1] = i.away && i.away.runs != null ? i.away.runs : null;
                                       line.home[i.num - 1] = i.home && i.home.runs != null ? i.home.runs : null; });
