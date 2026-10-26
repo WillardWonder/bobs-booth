@@ -1153,7 +1153,13 @@ def run_live(game, voice):
     log("broadcast over; replay saved in", cast.recorder.root)
 
 
-def run_render(game, voice, innings=None, folder="replays"):
+def render_deadline():
+    """Rendering must stop 85 minutes before the next first pitch, so tonight's live run can start on time."""
+    nxt = [ts(x["date"]) for x in series_games() if x["state"] == "Preview" and ts(x["date"]) > time.time()]
+    return (min(nxt) - 85 * 60) if nxt else float("inf")
+
+
+def run_render(game, voice, innings=None, folder="replays", deadline=float("inf")):
     """Re-call a finished game from MLB data, sized to the real gaps between pitches, and save it as replay files."""
     clock = {"t": 0.0}
     cast = Broadcast(sim=lambda: clock["t"])
@@ -1171,6 +1177,10 @@ def run_render(game, voice, innings=None, folder="replays"):
     d.pregame(first, short=True)
     i = 0
     while i < len(evs):
+        if time.time() > deadline:
+            log(f"stopping Game {game['num']} early so the live broadcast can start on time; this replay stays unfinished")
+            cast.recorder._flush() if cast.recorder.cur else None
+            return None
         batch = [evs[i]]; i += 1
         # a pitch put in play is called together with its result
         while i < len(evs) and evs[i]["kind"] == "result" and batch[-1]["p"] is evs[i]["p"]:
@@ -1335,8 +1345,12 @@ def main():
     else:
         gs = series_games()
         todo = [x for x in gs if str(x["pk"]) in RENDER or str(x["num"]) in RENDER] or [x for x in gs if x["state"] == "Final"]
+        deadline = render_deadline()
         for gm in todo:
-            run_render(gm, voice)
+            if time.time() + 45 * 60 > deadline:
+                log(f"not enough time to render Game {gm['num']} before the next broadcast; skipping it for now")
+                continue
+            run_render(gm, voice, deadline=deadline)
     log(f"done. Gemini requests {WRITE.count} ({WRITE.lat:.1f}s each), local model lines {LOCAL.count if LOCAL else 0} "
         f"({LOCAL.lat if LOCAL else 0:.1f}s each), voice rtf {voice.rtf:.2f}, words/s {voice.wps:.2f}")
 
