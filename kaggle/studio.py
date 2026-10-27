@@ -189,6 +189,20 @@ QUICK_FACTS = [
     "A statue of Bob Uecker stands outside the ballpark, and another sits in the last row of the upper deck.",
     "Milwaukee's Braves won the World Series in nineteen fifty-seven at County Stadium.",
 ]
+CLINCH_CALL = ("And that's the ball game, folks. | That's it! That's it! The Brewers win the World Series! The Milwaukee Brewers are champions of the world! "
+               "Oh my goodness, oh my goodness! Fifty-some years of waiting, and Milwaukee finally has its championship! Listen to this place! Listen to them!")
+CLINCH_SPEECH = (
+    "Folks, I have waited a long, long time to say those words. The Milwaukee Brewers are the champions of the world. "
+    "I can't tell you how proud I am to be the one sitting behind this microphone to tell you. "
+    "To every one of you who ever turned on a radio in the kitchen, in the garage, out on the tractor, up at the cabin, "
+    "or in the car with the windows down on a summer night, this one is yours. "
+    "You stuck with this ball club through the long seasons and the lean ones, and you stuck with an old catcher who never could hit a curveball. "
+    "Thank you. Thank you to all the good people who carried me along all those years, the folks in the booth, the folks in the stands, "
+    "and every kid who ever fell asleep with a radio under the pillow. "
+    "And a special thank you to Josh Stutting, who worked a little wizardry to put me back behind this microphone for one more ride. "
+    "Well, I'd better get going. The fella at the pearly gates only gave me a pass long enough to call this one, "
+    "and they don't let you stay out past curfew up there. But I'll tell you what, it was worth the trip. "
+    "So long, everybody, and congratulations, Milwaukee. You are world champions.")
 SPONSOR = ("This experience was made possible by Brewers fans and the wizardry of Josh Stutting. "
            "That's stutting dot josh at gmail dot com. Again, that's s, t, u, t, t, i, n, g, dot, j, o, s, h, at gmail dot com, "
            "for all of your technology needs, or wizardry needs.")
@@ -1148,6 +1162,9 @@ class Director:
         when = "after tonight" if include_tonight else "before tonight's game"
         if not done:
             return "This is the first game of the series; nobody has won a game yet."
+        if mil >= 4:
+            return (f"The Brewers have WON THE WORLD SERIES, {mil} games to {opp}, the first championship in Brewers history. "
+                    f"The Rays won {opp} games." + (" The Rays did not win a single game." if opp == 0 else ""))
         lead = (f"the Brewers lead the series {mil} games to {opp}" if mil > opp else
                 f"the Rays lead the series {opp} games to {mil}" if opp > mil else f"the series is tied {mil} games apiece")
         out = [f"Series {when}: {lead}. The Brewers have won {mil} and the Rays have won {opp}."]
@@ -1345,7 +1362,8 @@ class Director:
              f"Score: {self.box.sc()}. Hits so far: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}."]
         f += self.share_item(0.5)
         self.say(BREAK, "\n".join(f), f"That's the {self.box.half} of the {ordinal(self.box.inning)}. {self.box.sc()}.", "break", 16)
-        if self.box.half == "bottom":
+        game_over = self.box.inning >= 9 and self.box.score["away"] != self.box.score["home"]
+        if self.box.half == "bottom" and not game_over:
             self.say(None, None, None, "sponsor", 20, text=SPONSOR, pause=1.0)
         self.hint = "break"
         self.pool = []
@@ -1355,6 +1373,10 @@ class Director:
         Not after an excited call: the excitement gets the air to itself."""
         if self.last_hot:
             return None
+        b = self.box
+        if b.outs >= 3 and b.inning >= 9 and (b.half == "bottom" and b.score["away"] != b.score["home"] or
+                                              b.half == "top" and b.score["home"] > b.score["away"]):
+            return None                                   # the game is over: nothing between the last out and the sign-off
         if not self.facts_quick:
             self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         fact = self.facts_quick.pop()
@@ -1366,8 +1388,30 @@ class Director:
     def postgame(self, plays):
         self.chunk = "postgame"
         last = plays[-1]["result"].get("description", "") if plays else ""
-        self.say("The game is over. Give the final score, one line on who made the difference based on the facts, where the series stands now exactly as the facts say, and sign off warmly as Bob.",
-                 f"Final: {self.box.sc()}. Hits: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}. Last play: {last}\n" + self.series_so_far(include_tonight=True),
+        mil_side = next((k for k in ("away", "home") if self.box.team.get(k) == "Brewers" or self.box.ab.get(k) == "MIL"), None)
+        try:
+            before, opp_before, _ = self.series_counts(include_tonight=False)
+        except Exception:
+            before, opp_before = 0, 0
+        won = bool(mil_side) and self.box.score[mil_side] > self.box.score["home" if mil_side == "away" else "away"]
+        mil_after, opp_after = before + won, opp_before + (not won)
+        clinch = won and mil_after >= 4
+        if clinch:
+            series = (f"The Brewers have WON THE WORLD SERIES tonight, {mil_after} games to {opp_after}, the first championship in Brewers history.")
+        else:
+            series = (f"Series after tonight: Brewers {mil_after} wins, Rays {opp_after} wins." +
+                      (" The Rays have not won a single game in this series." if opp_after == 0 else ""))
+        facts = (f"Final: {self.box.sc()}. Hits: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}. "
+                 f"Last play: {last}\n{series}")
+        if clinch:
+            self.say(None, None, None, "final", 30, hot="good", text=CLINCH_CALL, pause=0.3)
+            self.say("The Brewers just won the World Series. Give the final score and one or two lines on who made the difference "
+                     "tonight, based only on the facts. Do not sign off yet.", facts,
+                     f"Final score, {self.box.sc()}.", "final", 20)
+            self.say(None, None, None, "final", 90, text=CLINCH_SPEECH, pause=1.2)
+            return
+        self.say("The game is over. Give the final score, one line on who made the difference based on the facts, where the series stands now "
+                 "exactly as the facts say, and sign off warmly as Bob.", facts,
                  f"And that's the ball game. Final score, {self.box.sc()}. This has been Bob.", "final", 22)
 
 
