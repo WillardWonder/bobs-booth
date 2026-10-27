@@ -15,7 +15,7 @@ WORK = "/kaggle/working" if ON_KAGGLE else "/content"
 MODE = os.environ.get("BOB_MODE", "live").strip().lower()
 RENDER = [x for x in os.environ.get("BOB_RENDER", "").replace(" ", "").split(",") if x]
 NUM_STEP = int(os.environ.get("BOB_STEPS", "16"))       # voice decoding steps (OmniVoice's default is 32)
-DELAY = float(os.environ.get("BOB_DELAY", "15"))        # target seconds behind the field when live
+DELAY = float(os.environ.get("BOB_DELAY", "30"))        # target seconds behind the field when live
 ON_AIR_EARLY = 30 * 60                                  # the pregame show starts this long before first pitch
 SEASON, BREWERS, SR = 2026, 158, 24000
 TOPIC = "bobs-booth-mke-4q7v2k"
@@ -1058,9 +1058,10 @@ class Director:
             log(f"  excited voice ({hot}): {caption(text)[-90:]}")
         self.mem.append(caption(text)); del self.mem[:-8]
         self.said += 1
-        if FIRST_PERSON.search(caption(text)):
+        if FIRST_PERSON.search(caption(text)) or kind == "story":
             self.told.append(caption(text)); del self.told[:-40]
-            self.tale_at = self.said
+            if FIRST_PERSON.search(caption(text)):
+                self.tale_at = self.said
         if self.render:
             not_before = (event_t + 1.5) if event_t else 0.0
         else:
@@ -1272,6 +1273,8 @@ class Director:
         if not self.pool or self.pool_key != key:
             facts = ["Situation: " + self.box.situation(), self.series_so_far()] + self.share_item(0.35)
             self.background(facts, chance=0.8)
+            if not self.box.started:
+                facts.insert(0, "The game has not started yet: no pitches, no outs, no score. Talk about the matchup, the series and the players.")
             if self.said - self.tale_at >= 25:
                 facts.append("A tall tale is allowed this time.")
             n = 3 if self.hint in ("break", "change") else 1
@@ -1279,7 +1282,7 @@ class Director:
             fj = "\n".join(facts)
             allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)},
                      "nums": numbers_in(fj), "told": self.told}
-            text = ask(FILL.format(n=n, w=int(w)), fj, self.mem, "", words=w * n, volume=True, allow=allow)
+            text = ask(FILL.format(n=n, w=int(w)), fj, self.mem, "", words=w * n, volume=self.box.started, allow=allow)
             self.pool = [s.strip() for s in re.split(r"\n\s*\|\|\s*\n|\s\|\|\s", text or "") if len(s.split()) >= 4]
             self.pool_key = key
         if not self.pool:
@@ -1346,8 +1349,14 @@ def run_live(game, voice):
                 expect = max(expect, idle + 45)
             remaining = expect - idle
             ready_in = voice.rtf * 10 + writer_lat() + 1.5        # start the next line early enough to land on time
-            if cast.backlog() < ready_in and remaining - cast.backlog() > 10 and idle > 4:
-                d.filler(min(remaining - cast.backlog() - 3, 14))
+            # Bob's air is known up to DELAY seconds ahead: nothing that happens from now on can air sooner than that.
+            # Fill any hole in that stretch, starting early enough that the segment is ready when the last line ends,
+            # and never running past the point where the next play could need the air.
+            backlog = cast.backlog()
+            lead = ready_in + (6 if DELAY >= 25 else 0)
+            room = min(DELAY + remaining - backlog - 3, DELAY - backlog - 1, 14)
+            if backlog < lead and room > 6 and idle > 4:
+                d.filler(room)
             time.sleep(0.4)
         except Exception:
             traceback.print_exc(); time.sleep(3)
