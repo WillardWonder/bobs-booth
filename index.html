@@ -471,7 +471,32 @@ const players = [new Audio(), new Audio()];
 players.forEach(p => { p.crossOrigin = "anonymous"; p.preload = "auto"; });
 let active = players[0], ctx = null, analyser = null, gain = null, buf = null, lvl = 0;
 const bars = [...document.querySelectorAll("#meter b")];
+// Phones: play Bob straight from the audio elements (no Web Audio graph), because phones suspend Web Audio when the
+// screen locks, which would silence him. A quiet crowd loop runs underneath while playing: it tells listeners the
+// broadcast is still going between calls, and keeps the phone's audio session alive with the screen off.
+const MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ""));
+const ambient = new Audio("art/ambience.mp3"); ambient.loop = true; ambient.preload = "none";
+let wakeLock = null;
+function keepAwake(on){
+  try{
+    if (on && !wakeLock && navigator.wakeLock && document.visibilityState === "visible")
+      navigator.wakeLock.request("screen").then(l => { wakeLock = l; l.addEventListener("release", () => { wakeLock = null; }); }).catch(() => {});
+    if (!on && wakeLock){ wakeLock.release().catch(() => {}); wakeLock = null; }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", () => { if (playing) keepAwake(true); });
+function mediaSession(){
+  try{
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({title: ($("matchup").textContent || "Brewers baseball") + (mode === "live" ? " (live)" : " (replay)"),
+      artist: "Bob, Bob's Booth", album: "World Series", artwork: [{src: new URL("art/bob-booth.webp", location.href).href, sizes: "485x570", type: "image/webp"}]});
+    navigator.mediaSession.setActionHandler("play", () => { if (!playing) $("play").click(); });
+    navigator.mediaSession.setActionHandler("pause", () => { if (playing) $("play").click(); });
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+  }catch(e){}
+}
 function initAudio(){
+  if (MOBILE){ players.forEach(p => p.volume = vol); return; }
   if (ctx){ ctx.resume(); return; }
   try{
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -500,6 +525,9 @@ function setPlaying(on){
   $("play").setAttribute("aria-label", on ? "Pause" : "Play");
   $("meter").hidden = !on;
   $("portrait").classList.toggle("live", on && mode === "live");
+  if (on){ ambient.volume = MOBILE ? 1 : vol; ambient.play().catch(() => {}); } else ambient.pause();
+  keepAwake(on);
+  mediaSession();
 }
 function setOnAir(on, text){
   const rp = on && text === "Replay";
@@ -772,6 +800,7 @@ $("seek").addEventListener("change", () => { dragging = false; if (mode === "rep
 function setVol(v){
   vol = Math.max(0, Math.min(1, v));
   if (gain) gain.gain.value = vol; else players.forEach(p => p.volume = vol);
+  if (!MOBILE) ambient.volume = vol;
   $("vol").style.setProperty("--p", Math.round(vol * 100) + "%");
 }
 $("vol").addEventListener("input", () => setVol($("vol").value / 100));
