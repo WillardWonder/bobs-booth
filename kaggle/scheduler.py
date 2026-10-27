@@ -14,6 +14,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 START_EARLY = 70 * 60           # start the studio this long before first pitch (on the air at 30 minutes)
 ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower().strip()
 GAMES = ""                       # "render:1,2" renders only those games
+# Replays made before this time used older calling rules; these games get re-rendered automatically when nothing
+# else is going on (no game within 4 hours, studio idle). Change the time or the list to redo replays again.
+RENDER_EPOCH = 1793137790        # Oct 27 2026, 4:49 PM CT: true facts in gaps, sponsor line, series checks
+RERENDER = {1, 2}
 if ":" in ACTION:
     ACTION, GAMES = ACTION.split(":", 1)
 
@@ -49,6 +53,13 @@ def status():
         if s in low:
             return s
     return "unknown"
+
+
+def replay_made(num):
+    try:
+        return float(json.load(open(os.path.join(ROOT, "replays", f"game-{num}", "game.json"))).get("made") or 0)
+    except Exception:
+        return 0.0
 
 
 def have_replay(num):
@@ -184,11 +195,18 @@ def main():
         start(ACTION, GAMES)
         return
     if ACTION in ("auto", "collect") and not running:
+        added = []
         missing = [g for g in gs if g["state"] == "Final" and not have_replay(g["num"])]
-        if missing or ACTION == "collect":
-            added = collect()
-            with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
-                f.write(f"added={' '.join(map(str, added))}\n")
+        stale = [g["num"] for g in gs if g["state"] == "Final" and g["num"] in RERENDER and replay_made(g["num"]) < RENDER_EPOCH]
+        if missing or stale or ACTION == "collect":
+            added = collect()                 # also picks up a finished re-render (newer replays replace older ones)
+        stale = [n for n in stale if replay_made(n) < RENDER_EPOCH]
+        soon = any(g["state"] != "Final" and g["first"] - now < 4 * 3600 for g in gs)
+        if ACTION == "auto" and stale and not soon and not (missing and not added):
+            log("re-rendering with the current rules:", stale)
+            start("render", ",".join(map(str, stale)))
+        with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
+            f.write(f"added={' '.join(map(str, added))}\n")
 
 
 if __name__ == "__main__":
