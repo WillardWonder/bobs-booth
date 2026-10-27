@@ -1385,8 +1385,51 @@ class Director:
             text = "Did you know, " + fact[0].lower() + fact[1:]
         return self.say(None, None, None, "story", secs, text=text, pause=0.6)
 
+    def championship(self):
+        """True when tonight's final makes the Brewers World Series champions (fourth win)."""
+        try:
+            mil, opp, _ = self.series_counts(include_tonight=False)
+            side = "home" if "Brewers" in self.box.team["home"] or self.box.ab.get("home") == "MIL" else "away"
+            other = "away" if side == "home" else "home"
+            return mil == 3 and self.box.score[side] > self.box.score[other]
+        except Exception:
+            return False
+
+    def champions_call(self):
+        """The moment: an all-out excited call, then Bob's speech, word for word."""
+        side = "home" if "Brewers" in self.box.team["home"] else "away"
+        other = "away" if side == "home" else "home"
+        mil_r, opp_r = self.box.score[side], self.box.score[other]
+        from num2words import num2words
+        score = f"{num2words(mil_r)} to {num2words(opp_r)}"
+        self.say(None, None, None, "final", 30, hot="good", pause=0.4, text=(
+            "And that's the final out. | "
+            "THE BREWERS HAVE WON THE WORLD SERIES! THE MILWAUKEE BREWERS ARE CHAMPIONS OF THE WORLD! "
+            "Oh my goodness, they did it! They did it! Fifty-seven years of waiting, and the Brewers are on top of the baseball world! "
+            f"Final score, {score}, and a four game sweep! Pile on, boys, pile on! Milwaukee, this one is yours!"))
+        speech = [
+            "Folks, give me a second here, because I am not sure I have the words. And for a guy who has never once run out of words, that is saying something.",
+            "I have been around this game a long time. I have sat on more benches than a park ranger, I have seen the lean years and the near misses, "
+            "and I always believed, always, that one day I would get to tell you this. The Milwaukee Brewers are world champions. "
+            "To be the one who gets to say it, on the air, to all of you, is the proudest moment of my life.",
+            "And it is yours, too. To every fan who sat through a cold April night at County Stadium, who stayed for the sausage race when we were down by ten, "
+            "who kept a radio on the porch all summer long. To everybody who ever tuned in, wrote in, or just hollered along with me, thank you. "
+            "You have been the best company a man could ask for, all these years.",
+            "And a special thank you to Josh Stutting, whose wizardry put this old voice back on the air for one more run. Josh, you did a heck of a job, kid.",
+            "Now, I have to be honest with you folks. The big fella upstairs only gave me a day pass for this one. "
+            "He said, Bob, go call the World Series, and then come right back, and do not touch the sausages. "
+            "So in a minute I have to head back up through the pearly gates. But I will tell you what, I am walking back in there with the biggest grin in all of heaven.",
+            "Hug somebody tonight, Milwaukee. Ring a bell. Wake the neighbors. The Brewers are champions of the world. "
+            "For the last time from this booth, this has been Bob. Good night, everybody. Celebrate, Milwaukee, celebrate!",
+        ]
+        for part in speech:
+            self.say(None, None, None, "final", 30, text=part, pause=1.2)
+
     def postgame(self, plays):
         self.chunk = "postgame"
+        if self.championship():
+            self.champions_call()
+            return
         last = plays[-1]["result"].get("description", "") if plays else ""
         mil_side = next((k for k in ("away", "home") if self.box.team.get(k) == "Brewers" or self.box.ab.get(k) == "MIL"), None)
         try:
