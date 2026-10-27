@@ -137,6 +137,62 @@ FACTS = [
     "The Tampa Bay Rays started play in 1998 as the Devil Rays and reached the World Series in 2008 and 2020.",
     "This is the Brewers' first World Series since 1982, and they are chasing the first championship in team history.",
 ]
+QUICK_FACTS = [
+    "The Brewers played their first game in Milwaukee in April of nineteen seventy, after Bud Selig's group bought the Seattle Pilots.",
+    "The Brewers called County Stadium home from nineteen seventy through two thousand.",
+    "Robin Yount reached the big leagues at eighteen and played all twenty of his seasons in Milwaukee.",
+    "Robin Yount got his three thousandth hit in nineteen ninety-two.",
+    "Robin Yount went into the Hall of Fame in nineteen ninety-nine, and Paul Molitor followed in two thousand four.",
+    "Robin Yount is the Brewers' all-time leader in games played and hits.",
+    "Paul Molitor's thirty-nine game hitting streak in nineteen eighty-seven ended with him waiting on deck as Rick Manning won the game with a hit.",
+    "The nineteen eighty-seven Brewers started the season with thirteen straight wins.",
+    "Rollie Fingers won both the Cy Young Award and the MVP for the Brewers in nineteen eighty-one.",
+    "Pete Vuckovich won the American League Cy Young Award in nineteen eighty-two.",
+    "Corbin Burnes won the Cy Young Award in twenty twenty-one, the Brewers' first since Pete Vuckovich.",
+    "Harvey Kuenn took over as manager in June of nineteen eighty-two and led the Brewers to the pennant.",
+    "In the nineteen eighty-two playoffs the Brewers came back from two games down to beat the Angels for the pennant.",
+    "Robin Yount hit two home runs on the last day of the nineteen eighty-two season to clinch the division in Baltimore.",
+    "Gorman Thomas led the American League in home runs twice, in nineteen seventy-nine and nineteen eighty-two.",
+    "Ben Oglivie shared the American League home run title in nineteen eighty.",
+    "Cecil Cooper drove in more than a hundred runs three times for Milwaukee.",
+    "Ted Simmons, the catcher on the nineteen eighty-two team, was voted into the Hall of Fame with the class of twenty twenty.",
+    "The Brewers made their first postseason in nineteen eighty-one.",
+    "Hank Aaron hit the last of his seven hundred fifty-five home runs as a Brewer in nineteen seventy-six.",
+    "The Brewers retired number forty-four for Hank Aaron.",
+    "Teddy Higuera won twenty games for the Brewers in nineteen eighty-six.",
+    "Juan Nieves threw the first no-hitter in Brewers history in nineteen eighty-seven.",
+    "The Brewers moved from the American League to the National League in nineteen ninety-eight.",
+    "Miller Park opened in two thousand one and became American Family Field in twenty twenty-one.",
+    "Milwaukee hosted the All-Star Game in nineteen seventy-five and again in two thousand two.",
+    "The two thousand two All-Star Game in Milwaukee ended in a tie after eleven innings.",
+    "Prince Fielder hit fifty home runs in two thousand seven, the youngest player ever to reach fifty.",
+    "Ryan Braun was the National League Rookie of the Year in two thousand seven.",
+    "Ryan Braun won the National League MVP in twenty eleven.",
+    "Ryan Braun is the Brewers' all-time home run leader.",
+    "CC Sabathia came to Milwaukee in a midseason trade in two thousand eight and pitched the Brewers into their first postseason in twenty-six years.",
+    "The Brewers drew more than three million fans for the first time in two thousand eight.",
+    "Trevor Hoffman recorded his six hundredth save as a Brewer in twenty ten.",
+    "In twenty eleven the Brewers won the division and reached the National League Championship Series.",
+    "In twenty eighteen the Brewers came within one game of the World Series, losing Game Seven of the playoffs to the Dodgers.",
+    "Christian Yelich won the National League batting title in twenty eighteen and again in twenty nineteen.",
+    "Christian Yelich hit for the cycle twice against the Reds in twenty eighteen.",
+    "Yovani Gallardo holds the Brewers' career record for strikeouts.",
+    "Craig Counsell, who grew up in the Milwaukee area, became the winningest manager in Brewers history.",
+    "Pat Murphy was named National League Manager of the Year in twenty twenty-four.",
+    "Jackson Chourio hit more than twenty home runs and stole more than twenty bases as a twenty year old rookie in twenty twenty-four.",
+    "The Brewers' ball in glove logo, drawn by an art student in the late nineteen seventies, hides the letters M and B.",
+    "The ball in glove logo came back as the Brewers' main logo in twenty twenty.",
+    "At County Stadium, Bernie Brewer slid into a giant mug after every Brewers home run.",
+    "The Racing Sausages are the Brat, the Polish, the Italian, the Hot Dog and the Chorizo.",
+    "Bob Uecker started calling Brewers games on the radio in nineteen seventy-one.",
+    "Bob Uecker received the Ford C. Frick Award from the Hall of Fame in two thousand three.",
+    "A statue of Bob Uecker stands outside the ballpark, and another sits in the last row of the upper deck.",
+    "Milwaukee's Braves won the World Series in nineteen fifty-seven at County Stadium.",
+]
+SPONSOR = ("This experience was made possible by Brewers fans and the wizardry of Josh Stutting. "
+           "That's stutting dot josh at gmail dot com. Again, that's s, t, u, t, t, i, n, g, dot, j, o, s, h, at gmail dot com, "
+           "for all of your technology needs, or wizardry needs.")
+FACT_INTROS = ["", "", "Here's one for you. ", "A little Brewers history. ", "Did you know, ", "Something to chew on. "]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
           "Keep it brisk and punchy.", "Let it breathe a little: warm and unhurried.",
 "Use a vivid verb for the pitch or the contact.",
@@ -482,6 +538,12 @@ def check_line(t, allow, mem):
         if extra:
             bad.append("it uses numbers that are not in the facts (" + ", ".join(str(n) for n in extra[:4]) +
                        "); use only numbers from the facts, or none")
+    if allow and allow.get("series"):
+        mil, opp = allow["series"]
+        if opp == 0 and re.search(r"\b(Rays|Tampa Bay|Tampa)\b[^.]{0,40}\b(won|took|take|win|wins|taken|grabbed|stole)\b[^.]{0,25}\b(game|one|two|three)\b", t, re.I):
+            bad.append("it says the Rays won a game in this series, but they have not won any")
+        if mil == 0 and re.search(r"\b(Brewers|Milwaukee|Crew)\b[^.]{0,40}\b(won|took|take|win|wins|taken|grabbed|stole)\b[^.]{0,25}\b(game|one|two|three)\b", t, re.I):
+            bad.append("it says the Brewers won a game in this series, but they have not won any")
     if allow and allow.get("told"):
         mine = shingles(t)
         if mine and any(mine & shingles(x) for x in allow["told"]):
@@ -1028,7 +1090,8 @@ class Director:
     def __init__(self, g, game, cast, voice, render=False):
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
-        self.told = []; self.said = 0; self.tale_at = -99
+        self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
+        self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         self.seen, self.done = set(), set()
         self.chunk = "pregame"; self.cur_p = None; self.hint = "pitch"; self.pool = []; self.pool_key = None
 
@@ -1049,10 +1112,16 @@ class Director:
             allow = dict(allow or {})
             allow["nums"] = numbers_in(f"{facts}\n{task}") | numbers_in(self.box.situation())
             allow["told"] = self.told
+            try:
+                allow["series"] = self.series_counts(include_tonight=(kind == "final"))[:2]
+            except Exception:
+                pass
         text = text or ask(task + (BIG + MOOD.get(hot, "") if hot else ""), facts, self.mem, fallback, words=self.words_for(secs),
                            volume=kind in ("pitch", "action", "story") and not hot, allow=allow)
         if not text:
             return None
+        if kind in ("pitch", "play", "action", "change", "break"):
+            self.last_hot = bool(hot)
         wav = self.voice.say(text, hot)
         if hot:
             log(f"  excited voice ({hot}): {caption(text)[-90:]}")
@@ -1068,14 +1137,27 @@ class Director:
         return self.cast.add(wav, text, kind, self.box.board(), self.chunk, not_before, pause=pause, evt=event_t)
 
     # ---- context
-    def series_so_far(self):
+    def series_counts(self, include_tonight=False):
         num = self.game["num"]
-        done = [x for x in series_games() if x["state"] == "Final" and x["num"] < num]
-        if not done:
-            return "This is the first game of the series."
+        done = [x for x in series_games() if x["state"] == "Final" and (x["num"] < num or (include_tonight and x["num"] == num))]
         mil = sum(1 for x in done if (x["homeRuns"] > x["awayRuns"]) == ("Brewers" in x["home"]))
-        return f"Series so far before this game: Brewers {mil} wins, Rays {len(done) - mil} wins. " + " ".join(
-            f"Game {x['num']}: {x['away']} {x['awayRuns']}, {x['home']} {x['homeRuns']}." for x in done)
+        return mil, len(done) - mil, done
+
+    def series_so_far(self, include_tonight=False):
+        mil, opp, done = self.series_counts(include_tonight)
+        when = "after tonight" if include_tonight else "before tonight's game"
+        if not done:
+            return "This is the first game of the series; nobody has won a game yet."
+        lead = (f"the Brewers lead the series {mil} games to {opp}" if mil > opp else
+                f"the Rays lead the series {opp} games to {mil}" if opp > mil else f"the series is tied {mil} games apiece")
+        out = [f"Series {when}: {lead}. The Brewers have won {mil} and the Rays have won {opp}."]
+        if opp == 0:
+            out.append("The Rays have not won a single game in this series.")
+        if mil == 0:
+            out.append("The Brewers have not won a single game in this series.")
+        out += [f"Game {x['num']}: {x['away']} {x['awayRuns']}, {x['home']} {x['homeRuns']}, won by the "
+                f"{'Brewers' if (x['homeRuns'] > x['awayRuns']) == ('Brewers' in x['home']) else 'Rays'}." for x in done]
+        return " ".join(out)
 
     def lineup(self, side):
         try:
@@ -1263,34 +1345,29 @@ class Director:
              f"Score: {self.box.sc()}. Hits so far: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}."]
         f += self.share_item(0.5)
         self.say(BREAK, "\n".join(f), f"That's the {self.box.half} of the {ordinal(self.box.inning)}. {self.box.sc()}.", "break", 16)
+        if self.box.half == "bottom":
+            self.say(None, None, None, "sponsor", 20, text=SPONSOR, pause=1.0)
         self.hint = "break"
         self.pool = []
 
     def filler(self, secs):
-        """Fill a quiet stretch, sized to how long it should last. One request writes a few segments at once."""
-        key = (self.box.key(), self.box.outs, self.hint)
-        if not self.pool or self.pool_key != key:
-            facts = ["Situation: " + self.box.situation(), self.series_so_far()] + self.share_item(0.35)
-            self.background(facts, chance=0.8)
-            if self.said - self.tale_at >= 25:
-                facts.append("A tall tale is allowed this time.")
-            n = 3 if self.hint in ("break", "change") else 1
-            w = self.words_for(min(secs, 14))
-            fj = "\n".join(facts)
-            allow = {"counts": {(self.box.balls, self.box.strikes)}, "outs": {min(self.box.outs, 3)},
-                     "nums": numbers_in(fj), "told": self.told}
-            text = ask(FILL.format(n=n, w=int(w)), fj, self.mem, "", words=w * n, volume=True, allow=allow)
-            self.pool = [s.strip() for s in re.split(r"\n\s*\|\|\s*\n|\s\|\|\s", text or "") if len(s.split()) >= 4]
-            self.pool_key = key
-        if not self.pool:
+        """Fill a quiet stretch with one short, true Brewers fact, read word for word (no writer, so nothing invented).
+        Not after an excited call: the excitement gets the air to itself."""
+        if self.last_hot:
             return None
-        return self.say(None, None, None, "story", secs, text=self.pool.pop(0), pause=0.8)
+        if not self.facts_quick:
+            self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
+        fact = self.facts_quick.pop()
+        text = random.choice(FACT_INTROS) + fact
+        if text.startswith("Did you know, "):
+            text = "Did you know, " + fact[0].lower() + fact[1:]
+        return self.say(None, None, None, "story", secs, text=text, pause=0.6)
 
     def postgame(self, plays):
         self.chunk = "postgame"
         last = plays[-1]["result"].get("description", "") if plays else ""
-        self.say("The game is over. Give the final score, one line on who made the difference based on the facts, and sign off warmly as Bob.",
-                 f"Final: {self.box.sc()}. Hits: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}. Last play: {last}",
+        self.say("The game is over. Give the final score, one line on who made the difference based on the facts, where the series stands now exactly as the facts say, and sign off warmly as Bob.",
+                 f"Final: {self.box.sc()}. Hits: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}. Last play: {last}\n" + self.series_so_far(include_tonight=True),
                  f"And that's the ball game. Final score, {self.box.sc()}. This has been Bob.", "final", 22)
 
 
@@ -1345,9 +1422,9 @@ def run_live(game, voice):
             if not d.box.started:                          # first pitch running late: keep the pregame going
                 expect = max(expect, idle + 45)
             remaining = expect - idle
-            ready_in = voice.rtf * 10 + writer_lat() + 1.5        # start the next line early enough to land on time
-            if cast.backlog() < ready_in and remaining - cast.backlog() > 10 and idle > 4:
-                d.filler(min(remaining - cast.backlog() - 3, 14))
+            ready_in = voice.rtf * 8 + 1.5                       # a fact is read word for word: only voicing time
+            if cast.backlog() < ready_in and remaining - cast.backlog() > 7 and idle > 2.5:
+                d.filler(min(remaining - cast.backlog() - 2, 9))
             time.sleep(0.4)
         except Exception:
             traceback.print_exc(); time.sleep(3)
@@ -1396,8 +1473,8 @@ def run_render(game, voice, innings=None, folder="replays", deadline=float("inf"
         clock["t"] = max(clock["t"], cast.air_end)
         # quiet stretches between 20 s and 2 minutes get one filler; longer breaks are trimmed in the replay anyway
         gap = nxt - cast.air_end
-        if 20 < gap and d.hint not in ("break",):
-            d.filler(min(gap - 5, 14))
+        if 9 < gap:
+            d.filler(min(gap - 3, 9))
             clock["t"] = max(clock["t"], cast.air_end)
     clock["t"] = cast.air_end
     d.postgame([e["p"] for e in evs])

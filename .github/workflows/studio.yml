@@ -5,6 +5,9 @@ name: Bob's studio
 on:
   schedule:
     - cron: "7,22,37,52 * * * *"
+    # extra tries in the hours before a 7 PM Central first pitch (GitHub sometimes skips scheduled runs);
+    # the reliable trigger is an outside scheduler calling this workflow (see README in kaggle/)
+    - cron: "3,13,28,43,58 21,22,23 * * *"
   workflow_dispatch:
     inputs:
       action:
