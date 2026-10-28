@@ -216,6 +216,14 @@ SPONSORS = [
     "If your technology is caught in a rundown, Josh Stutting will get it home safe. stutting dot josh at gmail dot com. " + SPELLED,
     "Got a computer that's been on the injured list all season? Josh Stutting is the trainer you need, and he'll have it back in the lineup by morning. stutting dot josh at gmail dot com.",
     "Folks, the real all star in this booth is Josh Stutting. He's batting a thousand on tech problems. Look him up: stutting dot josh at gmail dot com.",
+    "This half inning was brought to you by Josh Stutting, the greatest wizard since Merlin hung up his hat. Merlin had a wand. Josh has a laptop and a lot more patience. stutting dot josh at gmail dot com.",
+    "Brought to you by Josh Stutting. They say any sufficiently advanced technology is indistinguishable from magic, and folks, Josh does both before lunch. stutting dot josh at gmail dot com. " + SPELLED,
+    "Today's lineup card is sponsored by Josh Stutting, wizard, teacher, and the only man I know who can talk a printer down off the ledge. stutting dot josh at gmail dot com.",
+    "A word from Josh Stutting. Gandalf had his staff, Merlin had his beard, and Josh has the wifi password. He'll get you connected. stutting dot josh at gmail dot com.",
+    "Bob's Booth is powered by Brewers fans and by Josh Stutting, who turns tech headaches into high fives. stutting dot josh at gmail dot com. " + SPELLED,
+    "If your computer has more errors than my old fielding chart, and believe me that's a lot, call in the wizard. Josh Stutting. stutting dot josh at gmail dot com.",
+    "This inning is brought to you by Josh Stutting, who has never once told anybody to just turn it off and on again. Okay, once. And it worked. stutting dot josh at gmail dot com.",
+    "Folks, I've seen a lot of magic in this game, but nothing like Josh Stutting. He brought an old radio man back to the booth. Imagine what he can do for your business. stutting dot josh at gmail dot com. " + SPELLED,
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
 FACT_INTROS = [""]
