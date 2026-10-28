@@ -385,7 +385,7 @@ footer p{max-width:72em;margin:0 0 8px}
     <div class="wrap">
       <div class="sec-h">
         <h2 id="games-h"><span>The</span> Series</h2>
-        <p>On game nights Bob goes on the air 30 minutes before first pitch, and everyone hears the same broadcast. Finished games replay any time, from the first pitch or any inning.</p>
+        <p>On game nights Bob goes on the air 15 minutes before first pitch, and everyone hears the same broadcast. Finished games replay any time, from the first pitch or any inning.</p>
       </div>
       <div class="games" id="games"><p class="empty-note">Loading the schedule&hellip;</p></div>
     </div>
@@ -436,7 +436,7 @@ footer p{max-width:72em;margin:0 0 8px}
 
 <footer class="g"><div class="wrap">
   <p>Bob is an AI announcer made for fun, in the spirit of Brewers radio. AI models write his lines from MLB's public pitch-by-pitch data, and an AI voice speaks them. Bob is not Bob Uecker, and nothing Bob says was said by Uecker. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
-  <p>On game nights Bob's studio runs on a free cloud computer and goes on the air 30 minutes before first pitch. Finished games are saved here as replays.</p>
+  <p>On game nights Bob's studio runs on a free cloud computer and goes on the air 15 minutes before first pitch. Finished games are saved here as replays.</p>
   <p class="credit"><span>Built by <b>Josh Stutting</b>, AI &amp; tech wizardry: <a href="mailto:stutting.josh@gmail.com">stutting.josh@gmail.com</a></span>
   <span>Learn tech in central Wisconsin at <a href="https://www.ntc.edu/" rel="noopener">Northcentral Technical College</a></span>
   <span><a href="how-it-was-made.html">How Bob was made</a></span></p>
@@ -895,7 +895,7 @@ function renderNext(){
   const fp = new Date(nxt.date).getTime();
   $("nexttext").innerHTML = "<b></b>";
   $("nexttext").querySelector("b").textContent = `Next up: Game ${nxt.num}`;
-  $("nexttext").append(`${short(nxt.away)} at ${short(nxt.home)} · ${dateFmt(nxt.date)}, ${timeFmt(fp)}. Bob on the air at ${timeFmt(fp - 30 * 60000)}.`);
+  $("nexttext").append(`${short(nxt.away)} at ${short(nxt.home)} · ${dateFmt(nxt.date)}, ${timeFmt(fp)}. Bob on the air at ${timeFmt(fp - 15 * 60000)}.`);
 }
 function renderGames(){
   const liveKey = studio && studio.on && studio.game ? studio.game.pk : 0;
@@ -940,7 +940,7 @@ function renderGames(){
       else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's replay of this game is on its way."; card.append(n); }
     } else {
       const fp = new Date(g.date).getTime();
-      s.textContent = `First pitch ${timeFmt(fp)}. Bob goes on the air at ${timeFmt(fp - 30 * 60000)}.`;
+      s.textContent = `First pitch ${timeFmt(fp)}. Bob goes on the air at ${timeFmt(fp - 15 * 60000)}.`;
     }
     card.id = "game-" + g.num;
     if (location.hash === "#game-" + g.num && !(mode && R.game && R.game.num !== g.num)) card.classList.add("tuned");
@@ -985,7 +985,7 @@ async function loop(){
     } else if (liveG){
       $("status").textContent = "Bob's studio is off right now, so the board shows the live score straight from MLB.";
     } else {
-      $("status").textContent = nxt ? `Bob is off the air until ${timeFmt(new Date(nxt.date).getTime() - 30 * 60000)} on ${dateFmt(nxt.date)}. Replays of finished games play any time.`
+      $("status").textContent = nxt ? `Bob is off the air until ${timeFmt(new Date(nxt.date).getTime() - 15 * 60000)} on ${dateFmt(nxt.date)}. Replays of finished games play any time.`
                                     : "Bob is off the air. Replays of finished games play any time.";
     }
     if (liveG) await mlbLive(liveG);

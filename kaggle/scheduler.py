@@ -11,7 +11,7 @@ from datetime import datetime
 
 KERNEL = "joshstutting/bobs-booth-studio"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-START_EARLY = 55 * 60           # start the studio this long before first pitch (on the air at 30 minutes)
+START_EARLY = 35 * 60           # studio starts about 35 minutes before first pitch; on the air 15 minutes before
 ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower().strip()
 GAMES = ""                       # "render:1,2" renders only those games
 # Replays made before this time used older calling rules; these games get re-rendered automatically when nothing
