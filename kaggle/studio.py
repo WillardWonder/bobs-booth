@@ -247,14 +247,14 @@ SPONSORS = [
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
 NTC = [
-    "The next pitch is brought to you by Northcentral Technical College in Wausau. Folks, if you're not planning on getting drafted by the Brewers this year, check out their programs. N T C dot edu.",
-    "This next pitch comes to you courtesy of Northcentral Technical College in Wausau. Not everybody makes the big club, but everybody can make a great career. Find out how at N T C dot edu.",
-    "The next pitch is presented by Northcentral Technical College, right there in Wausau. Hands-on learning, real careers, and instructors who know their stuff. N T C dot edu.",
-    "Here comes the next pitch, brought to you by Northcentral Technical College in Wausau. If your fastball tops out at fifty, maybe a career in technology, health care, or the trades is more your speed. N T C dot edu.",
-    "The next pitch is brought to you by Northcentral Technical College. When the scouts don't call, N T C will. Well, you call them. N T C dot edu.",
-    "This pitch is sponsored by Northcentral Technical College in Wausau, where central Wisconsin goes to build a future. N T C dot edu.",
-    "The next delivery comes to you from Northcentral Technical College. I never made it out of the minors, but you don't have to wait on a call-up. N T C dot edu.",
-    "Next pitch brought to you by Northcentral Technical College in Wausau. Great programs, great people, and a lot better job prospects than backup catcher. Trust me. N T C dot edu.",
+    "The next pitch is brought to you by Northcentral Technical College in Wausau. Folks, if you're not planning on getting drafted by the Brewers this year, check out their programs. That's Northcentral Technical College, N T C dot edu.",
+    "This next pitch comes to you courtesy of Northcentral Technical College in Wausau. Not everybody makes the big club, but everybody can make a great career. That's Northcentral Technical College, N T C dot edu.",
+    "The next pitch is presented by Northcentral Technical College, right there in Wausau. Hands-on learning, real careers, and instructors who know their stuff. That's Northcentral Technical College, N T C dot edu.",
+    "Here comes the next pitch, brought to you by Northcentral Technical College in Wausau. If your fastball tops out at fifty, maybe a career in technology, health care, or the trades is more your speed. That's Northcentral Technical College, N T C dot edu.",
+    "The next pitch is brought to you by Northcentral Technical College. When the scouts don't call, N T C will. Well, you call them. That's Northcentral Technical College, N T C dot edu.",
+    "This pitch is sponsored by Northcentral Technical College in Wausau, where central Wisconsin goes to build a future. That's Northcentral Technical College, N T C dot edu.",
+    "The next delivery comes to you from Northcentral Technical College. I never made it out of the minors, but you don't have to wait on a call-up. That's Northcentral Technical College, N T C dot edu.",
+    "Next pitch brought to you by Northcentral Technical College in Wausau. Great programs, great people, and a lot better job prospects than backup catcher. Trust me. That's Northcentral Technical College, N T C dot edu.",
 ]
 FACT_INTROS = [""]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
