@@ -224,6 +224,26 @@ SPONSORS = [
     "If your computer has more errors than my old fielding chart, and believe me that's a lot, call in the wizard. Josh Stutting. stutting dot josh at gmail dot com.",
     "This inning is brought to you by Josh Stutting, who has never once told anybody to just turn it off and on again. Okay, once. And it worked. stutting dot josh at gmail dot com.",
     "Folks, I've seen a lot of magic in this game, but nothing like Josh Stutting. He brought an old radio man back to the booth. Imagine what he can do for your business. stutting dot josh at gmail dot com. " + SPELLED,
+    "Quick word from our sponsor. Josh Stutting: part teacher, part tech wizard, all Brewers fan. stutting dot josh at gmail dot com.",
+    "You know who never strikes out looking? Josh Stutting, when your tech is on the line. stutting dot josh at gmail dot com.",
+    "If your laptop is slower than me going first to third, and that's saying something, Josh Stutting can help. stutting dot josh at gmail dot com.",
+    "Josh Stutting, folks. He's got more tricks up his sleeve than a knuckleballer. stutting dot josh at gmail dot com. " + SPELLED,
+    "This pitch count brought to you by Josh Stutting, who keeps count of every byte so you don't have to. stutting dot josh at gmail dot com.",
+    "Need artificial intelligence put to work for your business? Josh Stutting makes it look like a routine fly ball. stutting dot josh at gmail dot com.",
+    "Josh Stutting: he builds it, he fixes it, he teaches it, and he still finds time to root for the Brewers. stutting dot josh at gmail dot com.",
+    "Some folks pull rabbits out of hats. Josh Stutting pulls working networks out of tangled cables. stutting dot josh at gmail dot com. " + SPELLED,
+    "I once got picked off first base by a pitcher who wasn't even looking. Josh Stutting never gets caught napping on your tech. stutting dot josh at gmail dot com.",
+    "Bob's Booth reminds you: when tech trouble comes knocking, let Josh Stutting answer the door. stutting dot josh at gmail dot com.",
+    "Brought to you by Josh Stutting, Wisconsin's own wizard of the wires. stutting dot josh at gmail dot com.",
+    "They call the closer in when the game's on the line. When your tech's on the line, call Josh Stutting. stutting dot josh at gmail dot com. " + SPELLED,
+    "Josh Stutting can explain technology so clearly, even I understood it, and I still can't work the microwave. stutting dot josh at gmail dot com.",
+    "A tip of the cap to Josh Stutting, the wizard who keeps this booth on the air. Your business could use a wizard too. stutting dot josh at gmail dot com.",
+    "Fun fact: Josh Stutting's tech fixes have a better batting average than the entire nineteen eighty-two Brewers lineup. Okay, I made that up, but it feels true. stutting dot josh at gmail dot com.",
+    "This moment of calm brought to you by Josh Stutting, who brings calm to even the messiest server room. stutting dot josh at gmail dot com.",
+    "Josh Stutting: turning 'it's broken' into 'it's working' since before it was cool. stutting dot josh at gmail dot com. " + SPELLED,
+    "Merlin, Gandalf, and Josh Stutting walk into a server room. Only one of them leaves with the problem fixed. stutting dot josh at gmail dot com.",
+    "If artificial intelligence sounds scary, Josh Stutting makes it friendly, useful, and on your side. stutting dot josh at gmail dot com.",
+    "Bob's Booth: proudly sponsored by Josh Stutting, the most valuable player of tech support. stutting dot josh at gmail dot com.",
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
 FACT_INTROS = [""]
@@ -1140,7 +1160,7 @@ class Director:
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
         self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
-        self.gap_fills = 0; self.fact_at = -99; self.recent_topics = []; self.sponsors = []; self.openings = []
+        self.gap_fills = 0; self.fact_at = -99; self.half_ads = 0; self.ad_at = -99; self.recent_topics = []; self.sponsors = []; self.openings = []
         self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         self.history = list(QUICK_FACTS); random.shuffle(self.history)
         self.seen, self.done = set(), set()
@@ -1417,6 +1437,8 @@ class Director:
             if not self.sponsors:
                 self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)
             self.say(None, None, None, "sponsor", 25, text=self.sponsors.pop(), pause=1.0)
+            self.ad_at = self.said
+        self.half_ads = 0
         self.hint = "break"
         self.pool = []
 
@@ -1500,6 +1522,11 @@ class Director:
         if self.gap_fills >= (4 if in_break else 1):
             return None
         self.gap_fills += 1
+        if b.started and self.half_ads < 2 and self.said - self.ad_at >= 12 and not in_break:
+            self.half_ads += 1; self.ad_at = self.said
+            if not self.sponsors:
+                self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)
+            return self.say(None, None, None, "sponsor", 25, text=self.sponsors.pop(), pause=0.8)
         topics = [t for t in self.COLOR if t not in self.recent_topics] or self.COLOR
         topic = random.choice(topics)
         self.recent_topics = (self.recent_topics + [topic])[-4:]
