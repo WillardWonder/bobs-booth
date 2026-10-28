@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Bob's Booth</title>
 <meta name="description" content="Brewers World Series radio called by Bob, an AI play-by-play announcer, with a tribute to Bob Uecker.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://willardwonder.github.io/bobs-booth/">
+<meta property="og:title" content="Bob's Booth: Brewers World Series radio">
+<meta property="og:description" content="Listen live as Bob, an AI radio announcer, calls the Brewers in the World Series. Replays of every game. Built by Josh Stutting.">
+<meta property="og:image" content="https://willardwonder.github.io/bobs-booth/art/share.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -208,6 +216,11 @@ table.sb{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fix
 .game .go:hover{background:#ffd35e}
 .game .go.alt{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
 .logbox{padding:6px 24px}
+.share{border:1px solid var(--edge);background:transparent;color:var(--ink-2);border-radius:8px;padding:8px 12px;font:600 .85rem var(--body);cursor:pointer;min-height:40px}
+.share:hover{color:#fff;border-color:#5b86b0}
+.game .tools{display:flex;gap:8px;flex-wrap:wrap}
+.credit{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.85rem;color:var(--ink-3);padding-top:10px;border-top:1px solid var(--line);margin-top:14px}
+.credit a{color:var(--gold)}
 .log{list-style:none;margin:0;padding:0}
 .log li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:20px;padding:14px 0;border-bottom:1px solid var(--line)}
 .log li:last-child{border-bottom:none}
@@ -283,6 +296,7 @@ footer p{max-width:72em;margin:0 0 8px}
       <a href="#calls">The Call</a>
       <a href="#brewers">History</a>
       <a href="#uecker">Tribute</a>
+      <a href="how-it-was-made.html">How it's made</a>
     </nav>
     <span class="onair" id="onair"><i aria-hidden="true"></i><span id="onairtext">Off the air</span></span>
   </div>
@@ -331,6 +345,7 @@ footer p{max-width:72em;margin:0 0 8px}
         </div>
         <div class="chips" id="chips" role="group" aria-label="Jump to an inning" hidden></div>
         <p class="status" id="status">Looking for Bob's studio&hellip;</p>
+        <div><button class="share" id="shareall" type="button">Share Bob's Booth</button></div>
       </section>
 
       <aside class="info panel" aria-labelledby="info-h">
@@ -422,6 +437,9 @@ footer p{max-width:72em;margin:0 0 8px}
 <footer class="g"><div class="wrap">
   <p>Bob is an AI announcer made for fun, in the spirit of Brewers radio. AI models write his lines from MLB's public pitch-by-pitch data, and an AI voice speaks them. Bob is not Bob Uecker, and nothing Bob says was said by Uecker. This fan page is not connected to MLB or the Milwaukee Brewers.</p>
   <p>On game nights Bob's studio runs on a free cloud computer and goes on the air 30 minutes before first pitch. Finished games are saved here as replays.</p>
+  <p class="credit"><span>Built by <b>Josh Stutting</b>, AI &amp; tech wizardry: <a href="mailto:stutting.josh@gmail.com">stutting.josh@gmail.com</a></span>
+  <span>Learn tech in central Wisconsin at <a href="https://www.ntc.edu/" rel="noopener">Northcentral Technical College</a></span>
+  <span><a href="how-it-was-made.html">How Bob was made</a></span></p>
 </div></footer>
 
 <script>
@@ -640,9 +658,30 @@ if (GOATCOUNTER){ const g = document.createElement("script"); g.async = true; g.
 let LID = "";
 try{ LID = localStorage.getItem("bobid") || ""; if (!LID){ LID = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); localStorage.setItem("bobid", LID); } }
 catch(e){ LID = String(Math.random()).slice(2); }
+async function shareLink(url, title){
+  try{ if (navigator.share){ await navigator.share({title, url}); return; } }catch(e){ return; }
+  try{ await navigator.clipboard.writeText(url); toast("Link copied"); }catch(e){ prompt("Copy this link", url); }
+}
+function toast(t){ const st = $("status"); const old = st.textContent; st.textContent = t; setTimeout(() => { if (st.textContent === t) st.textContent = old; }, 2500); }
+async function downloadGame(num, btn){
+  const meta = await loadReplay(num); if (!meta) return;
+  const parts = []; btn.disabled = true;
+  try{
+    for (let i = 0; i < meta.chunks.length; i++){
+      btn.textContent = `Preparing ${Math.round(i / meta.chunks.length * 100)}%`;
+      parts.push(await (await fetch(`replays/game-${num}/${meta.chunks[i].file}`)).blob());
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(parts, {type: "audio/mpeg"}));
+    a.download = `Bobs-Booth-World-Series-Game-${num}.mp3`; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }catch(e){ toast("Download didn't work. Try again in a minute."); }
+  btn.disabled = false; btn.textContent = "Download";
+}
+$("shareall").onclick = () => shareLink(location.origin + location.pathname, "Bob's Booth: Brewers World Series radio");
 function listeningText(s){
   const n = s && s.listening || 0;
-  return n > 0 ? `On the air · ${n} listening` : "On the air";
+  const narrow = innerWidth < 640;
+  return n > 0 ? (narrow ? `Live · ${n}` : `On the air · ${n} listening`) : "On the air";
 }
 async function pollStudio(){
   if (!API) return false;
@@ -889,14 +928,26 @@ function renderGames(){
         show.onclick = () => { revealed.add(g.num); gamesSig = ""; renderGames(); };
         s.append(show);
       }
-      if (replays[g.num]) btn("Play the replay", () => startReplay(g.num, 0));
+      if (replays[g.num]){
+        btn("Play the replay", () => startReplay(g.num, 0));
+        const tools = document.createElement("div"); tools.className = "tools";
+        const sh = Object.assign(document.createElement("button"), {className: "share", type: "button", textContent: "Share"});
+        sh.onclick = () => shareLink(location.origin + location.pathname + "#game-" + g.num, `Bob's call of World Series Game ${g.num}`);
+        const dl = Object.assign(document.createElement("button"), {className: "share", type: "button", textContent: "Download"});
+        dl.onclick = () => downloadGame(g.num, dl);
+        tools.append(sh, dl); card.append(tools);
+      }
       else { const n = document.createElement("p"); n.className = "s"; n.textContent = "Bob's replay of this game is on its way."; card.append(n); }
     } else {
       const fp = new Date(g.date).getTime();
       s.textContent = `First pitch ${timeFmt(fp)}. Bob goes on the air at ${timeFmt(fp - 30 * 60000)}.`;
     }
+    card.id = "game-" + g.num;
+    if (location.hash === "#game-" + g.num && !(mode && R.game && R.game.num !== g.num)) card.classList.add("tuned");
     box.append(card);
   });
+  const want = /^#game-(\d+)$/.exec(location.hash);
+  if (want && !window.__jumped && $("game-" + want[1])){ window.__jumped = true; const c = $("game-" + want[1]); c.classList.add("tuned"); c.scrollIntoView({block: "center"}); }
 }
 
 // ---------------- the main loop

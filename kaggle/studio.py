@@ -1471,13 +1471,9 @@ class Director:
         pcs = [(names(pid), n) for pid, n in b.pc.items() if names(pid)]
         if pcs:
             facts.append("Pitch counts tonight: " + "; ".join(f"{n} {c}" for n, c in pcs[-4:]) + ".")
-        towns = [t["name"] for t in audience_towns(8)]
         task = ("Many folks are just tuning in. Give a quick, lively recap for them: start with something like 'if you're just joining us' "
                 "(in your own words), then the score and inning, how the runs scored, who has been hot tonight, and where the series stands. "
                 "Three or four sentences.")
-        if towns and random.random() < 0.6:
-            facts.append("Some of the towns listeners are tuning in from tonight: " + ", ".join(towns) + ".")
-            task += " Then say a warm hello to listeners in two or three of those towns by name."
         self.say(task, "\n".join(facts), "", "recap", 24, pause=1.0)
 
     COLOR = ["the hitter at the plate: one detail from his background or his real numbers in the facts",
@@ -1784,40 +1780,13 @@ def run_render(game, voice, innings=None, folder="replays", deadline=float("inf"
 
 # ================================================================ the studio server
 # Who is listening: each page sends an anonymous random id with its polls (nothing personal), and p=1 while it plays live.
-AUDIENCE = {"seen": {}, "playing": {}, "visitors": set(), "listeners": set(), "peak": 0, "logged": 0, "towns": {}}
+AUDIENCE = {"seen": {}, "playing": {}, "visitors": set(), "listeners": set(), "peak": 0, "logged": 0}
 
 
-BAD_TOWN = re.compile(r"(fuck|shit|bitch|cunt|pussy|nigg|porn|nazi|hitler|penis|vagina|boob|poop|asshole)|\b(ass|dick|cock|fag|rape|sex|tits|butt|kill|die)\b", re.I)
 
-
-def clean_town(x):
-    t = re.sub(r"[^A-Za-z .'-]", "", str(x or ""))[:40].strip()
-    return "" if BAD_TOWN.search(t) else t
-
-
-def audience_towns(limit=40):
-    """Towns listeners are tuning in from tonight: [{name, lat, lon, n}], biggest first."""
-    agg = {}
-    for lid, t in AUDIENCE["towns"].items():
-        if lid not in AUDIENCE["listeners"]:
-            continue
-        k = t["name"]
-        a = agg.setdefault(k, {"name": k, "lat": t["lat"], "lon": t["lon"], "n": 0})
-        a["n"] += 1
-    return sorted(agg.values(), key=lambda a: -a["n"])[:limit]
-
-
-def audience(lid="", playing=False, town=None):
+def audience(lid="", playing=False):
     now = time.time()
     a = AUDIENCE
-    if lid and town and town.get("city") and lid not in a["towns"] and len(a["towns"]) < 20000:
-        try:
-            name = clean_town(town["city"]) + (", " + clean_town(town.get("region")) if clean_town(town.get("region")) else "")
-            if not clean_town(town["city"]):
-                raise ValueError("unusable town")
-            a["towns"][lid] = {"name": name, "lat": round(float(town.get("lat")), 1), "lon": round(float(town.get("lon")), 1)}
-        except (TypeError, ValueError):
-            pass
     if lid:
         a["seen"][lid] = now; a["visitors"].add(lid)
         if playing:
@@ -1849,9 +1818,7 @@ def serve():
     @app.route("/live")
     def live():
         snap = CAST.snapshot(int(request.args.get("since", 0) or 0))
-        town = {k: request.args.get(k) for k in ("city", "region", "lat", "lon")} if request.args.get("city") else None
-        snap["listening"] = audience(request.args.get("l", "")[:40], request.args.get("p") == "1", town)
-        snap["towns"] = audience_towns()
+        snap["listening"] = audience(request.args.get("l", "")[:40], request.args.get("p") == "1")
         return jsonify(snap)
 
     @app.route("/state")
