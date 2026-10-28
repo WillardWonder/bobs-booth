@@ -11,13 +11,13 @@ from datetime import datetime
 
 KERNEL = "joshstutting/bobs-booth-studio"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-START_EARLY = 70 * 60           # start the studio this long before first pitch (on the air at 30 minutes)
+START_EARLY = 55 * 60           # start the studio this long before first pitch (on the air at 30 minutes)
 ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower().strip()
 GAMES = ""                       # "render:1,2" renders only those games
 # Replays made before this time used older calling rules; these games get re-rendered automatically when nothing
 # else is going on (no game within 4 hours, studio idle). Change the time or the list to redo replays again.
 RENDER_EPOCH = 1793188517        # Oct 28 2026 morning: Bobisms engine
-RERENDER = {1}
+RERENDER = set()                 # GPU hours are tight: no more automatic re-renders this series
 if ":" in ACTION:
     ACTION, GAMES = ACTION.split(":", 1)
 
@@ -106,12 +106,18 @@ def start(mode="live", games=""):
     return code == 0
 
 
+COLLECT_FAILED = False
+
+
 def collect():
     """Copy finished replays from the studio's latest run into replays/. Returns the games added."""
     tmp = os.path.join(ROOT, ".kaggle-output")
     shutil.rmtree(tmp, ignore_errors=True)
     code, out = kaggle("kernels", "output", KERNEL, "-p", tmp)
     if code != 0:
+        log("could not download the studio's output; trying again next time")
+        global COLLECT_FAILED
+        COLLECT_FAILED = True
         return []
     added = []
     src_root = os.path.join(tmp, "replays")
@@ -190,7 +196,7 @@ def main():
         elif target:
             log(f"Game {target['num']} is close and the studio is {st}")
         else:
-            log("no game within the next 70 minutes")
+            log("no game coming up soon")
     if ACTION in ("test", "render") and not running:
         start(ACTION, GAMES)
         return
@@ -202,7 +208,7 @@ def main():
             added = collect()                 # also picks up a finished re-render (newer replays replace older ones)
         stale = [n for n in stale if replay_made(n) < RENDER_EPOCH]
         soon = any(g["state"] != "Final" and g["first"] - now < 4 * 3600 for g in gs)
-        if ACTION == "auto" and stale and not soon and not (missing and not added):
+        if ACTION == "auto" and stale and not soon and not (missing and not added) and not COLLECT_FAILED:
             log("re-rendering with the current rules:", stale)
             start("render", ",".join(map(str, stale)))
         with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
