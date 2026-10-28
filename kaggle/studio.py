@@ -129,7 +129,7 @@ FACTS = [
     "Paul Molitor put together a thirty-nine game hitting streak in 1987.",
     "Hank Aaron finished his career in Milwaukee, playing his last two seasons for the Brewers in 1975 and 1976.",
     "The Brewers switched from the American League to the National League in 1998.",
-    "American Family Field opened in 2001 as Miller Park, with a fan-shaped retractable roof.",
+    "Back home in Milwaukee, the Brewers' ballpark, American Family Field, opened in 2001 as Miller Park, with a fan-shaped retractable roof.",
     "Prince Fielder hit fifty home runs for Milwaukee in 2007.",
     "Christian Yelich won the National League MVP award in 2018.",
     "The Racing Sausages run at Brewers home games, a Milwaukee tradition since the 1990s.",
@@ -203,11 +203,26 @@ CLINCH_SPEECH = (
     "Well, I'd better get going. The fella at the pearly gates only gave me a pass long enough to call this one, "
     "and they don't let you stay out past curfew up there. But I'll tell you what, it was worth the trip. "
     "So long, everybody, and congratulations, Milwaukee. You are world champions.")
-SPONSOR = ("This experience was made possible by Brewers fans and the wizardry of Josh Stutting. "
-           "That's stutting dot josh at gmail dot com. Again, that's s, t, u, t, t, i, n, g, dot, j, o, s, h, at gmail dot com, "
-           "for all of your technology needs, or wizardry needs.")
-FACT_INTROS = ["", "", "Here's one for you. ", "A little Brewers history. ", "Did you know, ", "Something to chew on. "]
+SPELLED = "That's s, t, u, t, t, i, n, g, dot, j, o, s, h, at gmail dot com."
+SPONSORS = [
+    "This experience was made possible by Brewers fans and the wizardry of Josh Stutting. That's stutting dot josh at gmail dot com. Again, " + SPELLED[0].lower() + SPELLED[1:] + " For all of your technology needs, or wizardry needs.",
+    "Bob's Booth comes to you courtesy of Josh Stutting. Now, Josh may not play baseball, but folks, he knocks I T right out of the park. Tech trouble? Write to stutting dot josh at gmail dot com. " + SPELLED,
+    "A word from our sponsor, and frankly our only sponsor, Josh Stutting. When your computer throws you a curveball, Josh hits it into the upper deck. stutting dot josh at gmail dot com.",
+    "This broadcast is brought to you by Brewers fans everywhere and by Josh Stutting, the man who taught a computer to call a ballgame. Technology needs, wizardry needs, whatever you've got: stutting dot josh at gmail dot com.",
+    "Is your network in a slump? Is your printer batting a buck fifty? Bring in the closer. Josh Stutting. stutting dot josh at gmail dot com. " + SPELLED,
+    "I never could hit a curveball, but Josh Stutting has never met a tech problem he couldn't send to the bleachers. Reach him at stutting dot josh at gmail dot com.",
+    "A quick tip of the cap to the wizard behind the curtain, Josh Stutting. He built this whole booth out of ones and zeros. For your technology and wizardry needs, stutting dot josh at gmail dot com.",
+    "Bob's Booth is made possible by Josh Stutting, the five tool player of tech: he fixes it, builds it, automates it, explains it, and does it with a smile. stutting dot josh at gmail dot com.",
+    "If your technology is caught in a rundown, Josh Stutting will get it home safe. stutting dot josh at gmail dot com. " + SPELLED,
+    "Got a computer that's been on the injured list all season? Josh Stutting is the trainer you need, and he'll have it back in the lineup by morning. stutting dot josh at gmail dot com.",
+    "Folks, the real all star in this booth is Josh Stutting. He's batting a thousand on tech problems. Look him up: stutting dot josh at gmail dot com.",
+    "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
+]
+FACT_INTROS = [""]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
+          "Open with where the pitch ended up.", "Open with what the hitter did.", "Open with the runners or the defense.",
+          "Use a short sentence, then a longer one.", "Paint one small picture: the windup, the glove, the bat.",
+          "Avoid the word fires; pick a fresh verb.", "Do not mention the pitch speed this time.",
           "Keep it brisk and punchy.", "Let it breathe a little: warm and unhurried.",
 "Use a vivid verb for the pitch or the contact.",
           "Mention the score or the runners naturally.", "Sound like you are leaning toward the microphone."]
@@ -558,6 +573,10 @@ def check_line(t, allow, mem):
             bad.append("it says the Rays won a game in this series, but they have not won any")
         if mil == 0 and re.search(r"\b(Brewers|Milwaukee|Crew)\b[^.]{0,40}\b(won|took|take|win|wins|taken|grabbed|stole)\b[^.]{0,25}\b(game|one|two|three)\b", t, re.I):
             bad.append("it says the Brewers won a game in this series, but they have not won any")
+    if allow and allow.get("openings"):
+        first = " ".join(words_of(caption(t))[:3])
+        if first and first in allow["openings"]:
+            bad.append(f"it starts with '{first}', the same way as one of your recent calls; start it differently")
     if allow and allow.get("told"):
         mine = shingles(t)
         if mine and any(mine & shingles(x) for x in allow["told"]):
@@ -1105,6 +1124,7 @@ class Director:
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
         self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
+        self.gap_fills = 0; self.fact_at = -99; self.recent_topics = []; self.sponsors = []; self.openings = []
         self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         self.seen, self.done = set(), set()
         self.chunk = "pregame"; self.cur_p = None; self.hint = "pitch"; self.pool = []; self.pool_key = None
@@ -1126,6 +1146,7 @@ class Director:
             allow = dict(allow or {})
             allow["nums"] = numbers_in(f"{facts}\n{task}") | numbers_in(self.box.situation())
             allow["told"] = self.told
+            allow["openings"] = self.openings
             try:
                 allow["series"] = self.series_counts(include_tonight=(kind == "final"))[:2]
             except Exception:
@@ -1136,6 +1157,8 @@ class Director:
             return None
         if kind in ("pitch", "play", "action", "change", "break"):
             self.last_hot = bool(hot)
+            self.gap_fills = 0
+            self.openings = (self.openings + [" ".join(words_of(caption(text))[:3])])[-10:]
         wav = self.voice.say(text, hot)
         if hot:
             log(f"  excited voice ({hot}): {caption(text)[-90:]}")
@@ -1243,12 +1266,12 @@ class Director:
             extra = self.share_item() if extra == "item" else [x.format(**names) for x in extra]
             fallback = f"Hello everybody, Bob here with World Series Game {self.game['num']}." if k == 0 else ""
             secs = 24 if left > 120 else max(8, left / 3)
-            self.say("The game has not started yet, so do not describe any pitch, count or play. " + task.format(**names),
+            self.say("The game has not started yet, so do not describe any pitch, count or play. Tonight's ballpark is the one named in the facts. " + task.format(**names),
                      "\n".join(self.game_facts() + extra), fallback, kind, secs, pause=0.35 if k == 0 else 3.0)
             k += 1
             if not self.render:
                 # a relaxed pregame: a segment roughly every minute, leaving room for the next to be ready in time
-                gap = 25 if left > 600 else 6
+                gap = 6 if left > 600 else 3
                 while time.time() < self.cast.air_end + gap - 8 and first_pitch - time.time() > 40:
                     time.sleep(1)
 
@@ -1362,27 +1385,68 @@ class Director:
              f"Score: {self.box.sc()}. Hits so far: {self.box.team['away']} {self.box.hits['away']}, {self.box.team['home']} {self.box.hits['home']}."]
         f += self.share_item(0.5)
         self.say(BREAK, "\n".join(f), f"That's the {self.box.half} of the {ordinal(self.box.inning)}. {self.box.sc()}.", "break", 16)
-        game_over = self.box.inning >= 9 and self.box.score["away"] != self.box.score["home"]
-        if self.box.half == "bottom" and not game_over:
-            self.say(None, None, None, "sponsor", 20, text=SPONSOR, pause=1.0)
+        b = self.box
+        game_over = b.inning >= 9 and (b.half == "bottom" and b.score["away"] != b.score["home"] or
+                                       b.half == "top" and b.score["home"] > b.score["away"])
+        if not game_over:
+            if not self.sponsors:
+                self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)
+            self.say(None, None, None, "sponsor", 25, text=self.sponsors.pop(), pause=1.0)
         self.hint = "break"
         self.pool = []
 
+    COLOR = ["the hitter at the plate: one detail from his background or his real numbers in the facts",
+             "the pitcher: how his night is going (pitches thrown, strikeouts tonight) or his postseason numbers, from the facts",
+             "how tonight's runs were scored so far, from the line score in the facts",
+             "the situation right now: the count, the outs, the runners, and what each side wants",
+             "the series: where it stands and what tonight means, exactly as the facts say",
+             "the on-deck hitter or the bottom of the order coming up, using only names in the facts",
+             "the defense: who is playing where and what they have to watch for here, in general terms"]
+
     def filler(self, secs):
-        """Fill a quiet stretch with one short, true Brewers fact, read word for word (no writer, so nothing invented).
-        Not after an excited call: the excitement gets the air to itself."""
+        """Fill a quiet stretch. Mostly fresh color about this game (the writer, checked like every line); now and then
+        one true Brewers fact read word for word, each at most once a game. One fill between pitches; a few in a break.
+        Never right after an excited call, and nothing between the last out and the sign-off."""
         if self.last_hot:
             return None
         b = self.box
         if b.outs >= 3 and b.inning >= 9 and (b.half == "bottom" and b.score["away"] != b.score["home"] or
                                               b.half == "top" and b.score["home"] > b.score["away"]):
-            return None                                   # the game is over: nothing between the last out and the sign-off
-        if not self.facts_quick:
-            self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
-        fact = self.facts_quick.pop()
-        text = random.choice(FACT_INTROS) + fact
-        if text.startswith("Did you know, "):
-            text = "Did you know, " + fact[0].lower() + fact[1:]
+            return None
+        in_break = self.hint in ("break", "change") or not b.started
+        if self.gap_fills >= (4 if in_break else 1):
+            return None
+        self.gap_fills += 1
+        if self.facts_quick and self.said - self.fact_at >= 18 and random.random() < 0.5:
+            self.fact_at = self.said
+            return self.say(None, None, None, "story", secs, text=self.facts_quick.pop(), pause=0.6)
+        topics = [t for t in self.COLOR if t not in self.recent_topics] or self.COLOR
+        topic = random.choice(topics)
+        self.recent_topics = (self.recent_topics + [topic])[-4:]
+        facts = ["Situation: " + b.situation(), self.series_so_far()]
+        line = "Line score so far: " + "; ".join(f"{b.team[k]} by inning " + ", ".join(str(x) for x in b.line[k] if x is not None) for k in ("away", "home"))
+        facts.append(line)
+        m = (self.cur_p or {}).get("matchup", {})
+        for who in (m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")):
+            if who:
+                st = stats_line(self.g, who, before_game=self.render)
+                hh, ab, pa = b.bat.get(who, (0, 0, 0))
+                st += (f" Tonight so far: {hh} for {ab}." if pa else (f" Tonight so far: {b.pc[who]} pitches." if b.pc.get(who) else ""))
+                facts.append("Background: " + bio(self.g, who) + ". Real numbers from MLB: " + st)
+        if b.started and self.said - self.tale_at >= 40 and random.random() < 0.25:
+            topic = "a short, brand-new, harmless tall tale about your own forgettable playing days as a backup catcher, then back to the game"
+        fj = "\n".join(facts)
+        allow = {"counts": {(b.balls, b.strikes)}, "outs": {min(b.outs, 3)}, "nums": numbers_in(fj), "told": self.told}
+        try:
+            allow["series"] = self.series_counts()[:2]
+        except Exception:
+            pass
+        w = self.words_for(min(secs, 10 if not in_break else 14))
+        text = ask("Fill a quiet moment on the radio with one short, fresh remark about " + topic +
+                   ". Only use names and numbers from the facts. Say it a new way; do not repeat anything you said tonight.",
+                   fj, self.mem, "", words=w, volume=not in_break, allow=allow)
+        if not text:
+            return None
         return self.say(None, None, None, "story", secs, text=text, pause=0.6)
 
     def championship(self):

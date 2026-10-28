@@ -525,7 +525,7 @@ function setPlaying(on){
   $("play").setAttribute("aria-label", on ? "Pause" : "Play");
   $("meter").hidden = !on;
   $("portrait").classList.toggle("live", on && mode === "live");
-  if (on){ ambient.volume = MOBILE ? 1 : vol; ambient.play().catch(() => {}); } else ambient.pause();
+  if (on){ ambient.volume = MOBILE ? 1 : vol * 0.6; ambient.play().catch(() => {}); } else ambient.pause();
   keepAwake(on);
   mediaSession();
 }
@@ -800,7 +800,7 @@ $("seek").addEventListener("change", () => { dragging = false; if (mode === "rep
 function setVol(v){
   vol = Math.max(0, Math.min(1, v));
   if (gain) gain.gain.value = vol; else players.forEach(p => p.volume = vol);
-  if (!MOBILE) ambient.volume = vol;
+  if (!MOBILE) ambient.volume = vol * 0.6;
   $("vol").style.setProperty("--p", Math.round(vol * 100) + "%");
 }
 $("vol").addEventListener("input", () => setVol($("vol").value / 100));
