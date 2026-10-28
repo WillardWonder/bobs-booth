@@ -235,6 +235,9 @@ How Bob sounds:
 - Big moments build: the windup, the swing, the ball in flight, stretch one word as it carries, then let it land, then give the score.
 - Paint the picture for someone who cannot see it: where the ball went, who ran, who made the play.
 - Fills quiet stretches the way an old radio man does: the count and the situation, a real note about the hitter or pitcher from the facts, the series, a bit of Brewers history, and only now and then a story.
+- Bobisms: turn a real detail from the facts into something only Bob would say. A folksy comparison, dry understatement, a wry aside to the listener, a gentle jab at himself.
+  For example, a ball hit at a speed in the facts becomes "that left in a bigger hurry than I ever did"; a long at-bat becomes "these two are going to need a lunch break".
+  The detail must be real and come from the facts; the comparison is Bob's own. Never use the same comparison twice.
 - Now and then, not every break: self-deprecating humor about Bob's own made-up playing days as a forgettable backup catcher in the low minors. Never the same joke or story twice in a game.
 - Folksy, old-fashioned phrasing. Talks to the listener directly now and then.
 - Never repeats himself: vary sentence openings, verbs, and jokes.
@@ -528,6 +531,8 @@ def numbers_in(t):
             n = int(m); found.add(n)
             if 1000 <= n <= 2100:
                 found |= {n // 100, n % 100}
+            if n >= 1000:                      # 25211 can be said as twenty-five thousand two hundred eleven, or about twenty-five thousand
+                found |= {n // 1000, n % 1000, round(n / 1000), (n % 1000) // 100, n % 100}
     words = re.findall(r"[a-z]+", t.replace("-", " "))
     i = 0
     while i < len(words):
@@ -1129,6 +1134,7 @@ class Director:
         self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
         self.gap_fills = 0; self.fact_at = -99; self.recent_topics = []; self.sponsors = []; self.openings = []
         self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
+        self.history = list(QUICK_FACTS); random.shuffle(self.history)
         self.seen, self.done = set(), set()
         self.chunk = "pregame"; self.cur_p = None; self.hint = "pitch"; self.pool = []; self.pool_key = None
 
@@ -1216,6 +1222,7 @@ class Director:
         sp = [f"{pp[k]['fullName']} for the {self.box.team[k]}" for k in ("away", "home") if pp.get(k)]
         if sp:
             f.append("Starting pitchers: " + ", ".join(sp))
+        f += [x for x in self.rich_facts() if not x.startswith("Brewers history")]
         return f
 
     def background(self, out, p=None, chance=0.5):
@@ -1375,6 +1382,13 @@ class Director:
              f"After the play: {outs_text(self.box.outs)}, {bases_text(self.box.bases)}, score {self.box.sc()}."]
         if r.get("rbi"):
             f.append(f"Runs batted in on the play: {r['rbi']}.")
+        hd = next((e.get("hitData") for e in reversed(p.get("playEvents", [])) if e.get("hitData")), None)
+        if hd:
+            bits = [f"{hd['launchSpeed']:.0f} miles per hour off the bat" if hd.get("launchSpeed") else "",
+                    f"launch angle {hd['launchAngle']:.0f} degrees" if hd.get("launchAngle") is not None else "",
+                    f"traveled {hd['totalDistance']:.0f} feet" if hd.get("totalDistance") else ""]
+            if any(bits):
+                f.append("Batted ball: " + ", ".join(b for b in bits if b) + ".")
         f += ["Also happened: " + x["e"]["details"].get("description", "") for x in actions]
         self.background(f, p, 0.6)
         return "\n".join(f)
@@ -1406,6 +1420,64 @@ class Director:
              "the on-deck hitter or the bottom of the order coming up, using only names in the facts",
              "the defense: who is playing where and what they have to watch for here, in general terms"]
 
+    def rich_facts(self):
+        """Everything real we know about this moment, from MLB's feed, for Bob to narrate in his own words."""
+        try:
+            return self._rich_facts()
+        except Exception as e:
+            log("rich facts skipped:", str(e)[:120])
+            return []
+
+    def _rich_facts(self):
+        g, b = self.g, self.box
+        out = []
+        cur = self.cur_p or {}
+        cur_idx = (cur.get("about") or {}).get("atBatIndex", 10 ** 6)
+        plays = [x for x in (g.get("liveData", {}).get("plays", {}).get("allPlays") or [])
+                 if (x.get("about") or {}).get("isComplete") and x["about"].get("atBatIndex", 0) < cur_idx]
+        m = cur.get("matchup", {})
+        bid, pid = m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")
+        if bid:
+            mine = [x for x in plays if x.get("matchup", {}).get("batter", {}).get("id") == bid]
+            if mine:
+                out.append(f"{m['batter'].get('fullName', '')} earlier tonight: " + " ".join(
+                    f"In the {ordinal(x['about']['inning'])}, {x['result'].get('description', '')}" for x in mine[-3:]))
+        if pid:
+            ev = [e for x in plays if x.get("matchup", {}).get("pitcher", {}).get("id") == pid
+                  for e in x.get("playEvents", []) if e.get("isPitch")]
+            speeds = [e.get("pitchData", {}).get("startSpeed") for e in ev if e.get("pitchData", {}).get("startSpeed")]
+            kinds = {}
+            for e in ev:
+                t = ((e.get("details") or {}).get("type") or {}).get("description")
+                if t:
+                    kinds[t] = kinds.get(t, 0) + 1
+            if len(speeds) >= 20:
+                out.append(f"{m['pitcher'].get('fullName', '')}'s velocity tonight: his first ten pitches averaged {sum(speeds[:10]) / 10:.0f}, "
+                           f"his last ten {sum(speeds[-10:]) / 10:.0f}.")
+            if kinds:
+                top = sorted(kinds.items(), key=lambda kv: -kv[1])[:3]
+                out.append(f"{m['pitcher'].get('fullName', '')}'s pitch mix tonight: " + ", ".join(f"{n} {k}s" for k, n in top) + ".")
+        gd = g.get("gameData", {})
+        w = gd.get("weather") or {}
+        if w.get("condition") or w.get("temp"):
+            out.append("Weather at the ballpark: " + ", ".join(x for x in (w.get("condition"), f"{w['temp']} degrees" if w.get("temp") else "",
+                                                                     w.get("wind") if w.get("wind") and not str(w.get("wind")).startswith("0 mph") else "") if x) + ".")
+        if (gd.get("venue") or {}).get("name"):
+            out.append(f"Tonight's ballpark: {gd['venue']['name']}.")
+        att = (gd.get("gameInfo") or {}).get("attendance")
+        if att:
+            out.append(f"Attendance tonight: {att}.")
+        ump = next((o["official"]["fullName"] for o in (g.get("liveData", {}).get("boxscore", {}).get("officials") or [])
+                    if o.get("officialType") == "Home Plate" and o.get("official")), None)
+        if ump:
+            out.append(f"Home plate umpire: {ump}.")
+        scored = [x for x in plays if x.get("about", {}).get("isScoringPlay")]
+        if scored:
+            out.append("How the runs scored tonight: " + " ".join(f"{x['about']['halfInning'].title()} {ordinal(x['about']['inning'])}: {x['result'].get('description', '')}" for x in scored[-4:]))
+        if self.history and random.random() < 0.4:
+            out.append("Brewers history you may retell in your own words if it fits the moment: " + self.history.pop())
+        return out
+
     def filler(self, secs):
         """Fill a quiet stretch. Mostly fresh color about this game (the writer, checked like every line); now and then
         one true Brewers fact read word for word, each at most once a game. One fill between pitches; a few in a break.
@@ -1420,15 +1492,13 @@ class Director:
         if self.gap_fills >= (4 if in_break else 1):
             return None
         self.gap_fills += 1
-        if self.facts_quick and self.said - self.fact_at >= 18 and random.random() < 0.5:
-            self.fact_at = self.said
-            return self.say(None, None, None, "story", secs, text=self.facts_quick.pop(), pause=0.6)
         topics = [t for t in self.COLOR if t not in self.recent_topics] or self.COLOR
         topic = random.choice(topics)
         self.recent_topics = (self.recent_topics + [topic])[-4:]
         facts = ["Situation: " + b.situation(), self.series_so_far()]
         line = "Line score so far: " + "; ".join(f"{b.team[k]} by inning " + ", ".join(str(x) for x in b.line[k] if x is not None) for k in ("away", "home"))
         facts.append(line)
+        facts += self.rich_facts()
         m = (self.cur_p or {}).get("matchup", {})
         for who in (m.get("batter", {}).get("id"), m.get("pitcher", {}).get("id")):
             if who:
@@ -1445,8 +1515,10 @@ class Director:
         except Exception:
             pass
         w = self.words_for(min(secs, 10 if not in_break else 14))
-        text = ask("Fill a quiet moment on the radio with one short, fresh remark about " + topic +
-                   ". Only use names and numbers from the facts. Say it a new way; do not repeat anything you said tonight.",
+        text = ask("Fill a quiet moment on the radio with one short, fresh Bobism about " + topic +
+                   ", or about any other real detail in the facts that is more interesting right now (an earlier at-bat, the batted ball, "
+                   "the pitcher's velocity or pitch mix, the weather, the crowd, the umpire, a bit of Brewers history). "
+                   "Only use names and numbers from the facts. Say it a new way; do not repeat anything you said tonight.",
                    fj, self.mem, "", words=w, volume=not in_break, allow=allow)
         if not text:
             return None
