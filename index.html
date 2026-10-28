@@ -634,11 +634,21 @@ function barMode(kind){   // "replay" | "live" | "off"
 // ---------------- live: one shared timeline
 const L = {clips: [], last: 0, played: 0, offset: null, rtt: 1e9, timer: null};
 const serverNow = () => Date.now() / 1000 + (L.offset || 0);
+// Optional site stats: put your GoatCounter site code here (e.g. "bobsbooth") to count visits; empty does nothing.
+const GOATCOUNTER = "";
+if (GOATCOUNTER){ const g = document.createElement("script"); g.async = true; g.src = "https://gc.zgo.at/count.js"; g.dataset.goatcounter = `https://${GOATCOUNTER}.goatcounter.com/count`; document.head.append(g); }
+let LID = "";
+try{ LID = localStorage.getItem("bobid") || ""; if (!LID){ LID = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); localStorage.setItem("bobid", LID); } }
+catch(e){ LID = String(Math.random()).slice(2); }
+function listeningText(s){
+  const n = s && s.listening || 0;
+  return n > 0 ? `On the air · ${n} listening` : "On the air";
+}
 async function pollStudio(){
   if (!API) return false;
   try{
     const t0 = Date.now();
-    const j = await (await get(`${API}/live?since=${L.last}`, 6000)).json();
+    const j = await (await get(`${API}/live?since=${L.last}&l=${encodeURIComponent(LID)}&p=${playing && mode === "live" ? 1 : 0}`, 6000)).json();
     const t1 = Date.now(), rtt = t1 - t0;
     if (rtt < L.rtt * 1.5 || L.offset === null){ L.offset = j.now - (t0 + t1) / 2000; L.rtt = Math.min(L.rtt, rtt); }
     for (const c of j.clips){ if (c.id > L.last){ L.clips.push(c); L.last = c.id; } }
@@ -904,11 +914,11 @@ async function loop(){
   const s = studio;
   if (mode === "live"){
     if (!s || !s.on){ setOnAir(false, "Signal lost"); $("status").textContent = "Lost Bob's signal. Trying again in a moment."; }
-    else { setOnAir(true); $("status").textContent = "You're listening live. Bob's words appear above as he speaks."; }
+    else { setOnAir(true, listeningText(s)); $("status").textContent = "You're listening live. Bob's words appear above as he speaks."; }
   } else if (mode === "replay"){
     $("status").textContent = `Replay of Game ${R.game.num}. Drag the bar, skip 15 seconds, or jump to an inning.`;
   } else if (s && s.on){
-    setOnAir(true);
+    setOnAir(true, listeningText(s));
     const g = s.game || {}; setHeader(Object.assign({}, gameByPk(g.pk) || {}, g), "live"); setTeams(gameByPk(g.pk) || g);
     if (s.board) renderBoard(s.board);
     barMode("live");

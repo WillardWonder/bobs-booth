@@ -1106,6 +1106,9 @@ class Recorder:
         with self.lock:
             self._flush()
             self.meta["complete"] = True
+            if AUDIENCE["visitors"]:
+                self.meta.update({"listeners_peak": AUDIENCE["peak"], "listeners_total": len(AUDIENCE["listeners"]),
+                                  "visitors_total": len(AUDIENCE["visitors"])})
             self._save()
 
 
@@ -1635,6 +1638,25 @@ def run_render(game, voice, innings=None, folder="replays", deadline=float("inf"
 
 
 # ================================================================ the studio server
+# Who is listening: each page sends an anonymous random id with its polls (nothing personal), and p=1 while it plays live.
+AUDIENCE = {"seen": {}, "playing": {}, "visitors": set(), "listeners": set(), "peak": 0, "logged": 0}
+
+
+def audience(lid="", playing=False):
+    now = time.time()
+    a = AUDIENCE
+    if lid:
+        a["seen"][lid] = now; a["visitors"].add(lid)
+        if playing:
+            a["playing"][lid] = now; a["listeners"].add(lid)
+    n = sum(1 for t in a["playing"].values() if t > now - 30)
+    a["peak"] = max(a["peak"], n)
+    if now - a["logged"] > 60:
+        a["logged"] = now
+        log(f"audience: {n} listening now, peak {a['peak']}, {len(a['listeners'])} listeners and {len(a['visitors'])} visitors in all")
+    return n
+
+
 def serve():
     from flask import Flask, jsonify, send_file, request
     import logging
@@ -1653,7 +1675,9 @@ def serve():
 
     @app.route("/live")
     def live():
-        return jsonify(CAST.snapshot(int(request.args.get("since", 0) or 0)))
+        snap = CAST.snapshot(int(request.args.get("since", 0) or 0))
+        snap["listening"] = audience(request.args.get("l", "")[:40], request.args.get("p") == "1")
+        return jsonify(snap)
 
     @app.route("/state")
     def state():
