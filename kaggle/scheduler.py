@@ -17,7 +17,8 @@ GAMES = ""                       # "render:1,2" renders only those games
 # Replays made before this time used older calling rules; these games get re-rendered automatically when nothing
 # else is going on (no game within 4 hours, studio idle). Change the time or the list to redo replays again.
 RENDER_EPOCH = 1793188517        # Oct 28 2026 morning: Bobisms engine
-RERENDER = set()                 # GPU hours are tight: no more automatic re-renders this series
+RERENDER = {1}                   # collect the re-rendered Game 1 when it's ready
+AUTO_RENDER = False              # GPU hours are tight: never start a re-render on its own this series
 if ":" in ACTION:
     ACTION, GAMES = ACTION.split(":", 1)
 
@@ -208,7 +209,7 @@ def main():
             added = collect()                 # also picks up a finished re-render (newer replays replace older ones)
         stale = [n for n in stale if replay_made(n) < RENDER_EPOCH]
         soon = any(g["state"] != "Final" and g["first"] - now < 4 * 3600 for g in gs)
-        if ACTION == "auto" and stale and not soon and not (missing and not added) and not COLLECT_FAILED:
+        if ACTION == "auto" and AUTO_RENDER and stale and not soon and not (missing and not added) and not COLLECT_FAILED:
             log("re-rendering with the current rules:", stale)
             start("render", ",".join(map(str, stale)))
         with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
