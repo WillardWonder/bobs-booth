@@ -1522,7 +1522,7 @@ class Director:
         if self.gap_fills >= (4 if in_break else 1):
             return None
         self.gap_fills += 1
-        if b.started and self.half_ads < 2 and self.said - self.ad_at >= 12 and not in_break:
+        if b.started and self.half_ads < 1 and self.said - self.ad_at >= 20 and not in_break:
             self.half_ads += 1; self.ad_at = self.said
             if not self.sponsors:
                 self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)

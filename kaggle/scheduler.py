@@ -16,8 +16,8 @@ ACTION = (sys.argv[1] if len(sys.argv) > 1 else "auto").lower().strip()
 GAMES = ""                       # "render:1,2" renders only those games
 # Replays made before this time used older calling rules; these games get re-rendered automatically when nothing
 # else is going on (no game within 4 hours, studio idle). Change the time or the list to redo replays again.
-RENDER_EPOCH = 1793137790        # Oct 27 2026, 4:49 PM CT: true facts in gaps, sponsor line, series checks
-RERENDER = {1, 2}
+RENDER_EPOCH = 1793188517        # Oct 28 2026 morning: Bobisms engine
+RERENDER = {1}
 if ":" in ACTION:
     ACTION, GAMES = ACTION.split(":", 1)
 
