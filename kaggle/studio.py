@@ -246,6 +246,16 @@ SPONSORS = [
     "Bob's Booth: proudly sponsored by Josh Stutting, the most valuable player of tech support. stutting dot josh at gmail dot com.",
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
+NTC = [
+    "The next pitch is brought to you by Northcentral Technical College in Wausau. Folks, if you're not planning on getting drafted by the Brewers this year, check out their programs. N T C dot edu.",
+    "This next pitch comes to you courtesy of Northcentral Technical College in Wausau. Not everybody makes the big club, but everybody can make a great career. Find out how at N T C dot edu.",
+    "The next pitch is presented by Northcentral Technical College, right there in Wausau. Hands-on learning, real careers, and instructors who know their stuff. N T C dot edu.",
+    "Here comes the next pitch, brought to you by Northcentral Technical College in Wausau. If your fastball tops out at fifty, maybe a career in technology, health care, or the trades is more your speed. N T C dot edu.",
+    "The next pitch is brought to you by Northcentral Technical College. When the scouts don't call, N T C will. Well, you call them. N T C dot edu.",
+    "This pitch is sponsored by Northcentral Technical College in Wausau, where central Wisconsin goes to build a future. N T C dot edu.",
+    "The next delivery comes to you from Northcentral Technical College. I never made it out of the minors, but you don't have to wait on a call-up. N T C dot edu.",
+    "Next pitch brought to you by Northcentral Technical College in Wausau. Great programs, great people, and a lot better job prospects than backup catcher. Trust me. N T C dot edu.",
+]
 FACT_INTROS = [""]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
           "Open with where the pitch ended up.", "Open with what the hitter did.", "Open with the runners or the defense.",
@@ -1160,7 +1170,7 @@ class Director:
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
         self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
-        self.gap_fills = 0; self.fact_at = -99; self.half_ads = 0; self.ad_at = -99; self.recent_topics = []; self.sponsors = []; self.openings = []
+        self.gap_fills = 0; self.fact_at = -99; self.half_ads = 0; self.ad_at = -99; self.ntc = []; self.recent_topics = []; self.sponsors = []; self.openings = []
         self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         self.history = list(QUICK_FACTS); random.shuffle(self.history)
         self.seen, self.done = set(), set()
@@ -1433,7 +1443,11 @@ class Director:
         b = self.box
         game_over = b.inning >= 9 and (b.half == "bottom" and b.score["away"] != b.score["home"] or
                                        b.half == "top" and b.score["home"] > b.score["away"])
-        if not game_over:
+        if not game_over and b.half == "top":
+            if not self.ntc:
+                self.ntc = list(NTC); random.shuffle(self.ntc)
+            self.say(None, None, None, "sponsor", 25, text=self.ntc.pop(), pause=1.0)
+        elif not game_over:
             if not self.sponsors:
                 self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)
             self.say(None, None, None, "sponsor", 25, text=self.sponsors.pop(), pause=1.0)
