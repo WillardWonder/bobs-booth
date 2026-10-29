@@ -4,7 +4,7 @@
    "id": "champions",
    "group": "feature",
    "title": "Bob's Last Call",
-   "blurb": "Bob gets a one-night pass to call the final out of the Brewers' first World Series championship, and to say goodbye.",
+   "blurb": "Bob got a pass from upstairs for the whole World Series. Here he calls the final out of the Brewers' first championship, and says goodbye.",
    "parts": [
     {
      "text": "Tonight's presentation was brought to you by the Wizard, Josh Stutting. That's stutting dot josh at gmail dot com.",
@@ -22,12 +22,12 @@
      "pause": 0.8
     },
     {
-     "text": "And speaking of teaching, if you're looking for a fantastic education, my friends at Northcentral Technical College up in Wausau are the real deal. They train the people who make a ballgame happen. Chefs for the brats, video crews for the broadcast, and nurses and paramedics for when somebody pulls a hamstring sprinting to the concession stand.",
+     "text": "And speaking of teaching, if you're looking for a fantastic education, my friends at Northcentral Technical College up in Wah-saw are the real deal. They train the people who make a ballgame happen. Chefs for the brats, video crews for the broadcast, and nurses and paramedics for when somebody pulls a hamstring sprinting to the concession stand.",
      "hot": false,
      "pause": 0.55
     },
     {
-     "text": "And if you liked seeing a little magic tonight, an old ballplayer brought back for one more call, Northcentral Technical College is now enrolling students in its brand new Artificial Intelligence Developer degree. You learn to build the real thing. Artificial intelligence apps, language models, smart agents, even robotics. That's N, T, C, dot, E, D, U.",
+     "text": "And if you liked seeing a little magic tonight, an old ballplayer brought back to call the World Series, Northcentral Technical College is now enrolling students in its brand new Artificial Intelligence Developer degree. You learn to build the real thing. Artificial intelligence apps, language models, smart agents, even robotics. That's N, T, C, dot, E, D, U.",
      "hot": false,
      "pause": 1.2
     },
@@ -52,7 +52,7 @@
      "pause": 1.2
     },
     {
-     "text": "Now, you have to understand, they don't usually let fellas out of where I've been. I had to fill out a form. Then I had to fill out another form. The man at the front desk asked me what was so important, and I said, the Brewers are about to win the World Series. And he said, well, why didn't you say so, and he held the gate open himself.",
+     "text": "Now, you have to understand, they don't usually let fellas out of where I've been. I had to fill out a form. Then I had to fill out another form. The man at the front desk asked me what was so important, and I said, the Brewers are about to win the World Series. And he said, well, why didn't you say so. He's held the gate open for me every night of this series.",
      "hot": false,
      "pause": 0.8
     },
@@ -87,7 +87,7 @@
      "pause": 1.2
     },
     {
-     "text": "Now, I have to be getting back. They gave me one game, and you do not want to be late up there. The ushers are very strict. But before I go, thank you. Thank you for letting an old radio man ride along one more time.",
+     "text": "Now, I have to be getting back. They gave me the World Series, five games and not one inning more, and you do not want to be late up there. The ushers are very strict. But before I go, thank you. Thank you for letting an old radio man ride along one more time.",
      "hot": false,
      "pause": 0.9
     },

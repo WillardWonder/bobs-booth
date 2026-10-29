@@ -247,14 +247,14 @@ SPONSORS = [
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
 NTC = [
-    "You know, folks, if you're not planning on getting drafted by the Brewers this year, take a look at Northcentral Technical College up in Wausau. Real programs, real careers. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
-    "Not everybody makes the big club, but everybody can build a great career, and Northcentral Technical College in Wausau is a fine place to start. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "You know, folks, if you're not planning on getting drafted by the Brewers this year, take a look at Northcentral Technical College up in Wah-saw. Real programs, real careers. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "Not everybody makes the big club, but everybody can build a great career, and Northcentral Technical College in Wah-saw is a fine place to start. Northcentral Technical College, N, T, C, dot, E, D, U.",
     "One of the best things going in central Wisconsin is Northcentral Technical College. Hands-on learning and instructors who really know their stuff. Northcentral Technical College, N, T, C, dot, E, D, U.",
-    "If your fastball tops out at fifty, like mine did, maybe technology, health care, or the trades are more your speed. Northcentral Technical College in Wausau can get you there. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
-    "When the scouts don't call, you can still pick up the phone yourself. Northcentral Technical College in Wausau has a spot for you. Northcentral Technical College, N, T, C, dot, E, D, U.",
-    "I never made it out of the minors, but you don't have to wait on a call-up. Northcentral Technical College in Wausau is ready when you are. Look up Northcentral Technical College at N, T, C, dot, E, D, U.",
-    "Central Wisconsin builds its future at Northcentral Technical College in Wausau. Good people, great programs. Northcentral Technical College, N, T, C, dot, E, D, U.",
-    "Folks, a career beats backup catcher every time, trust me on that one. Northcentral Technical College in Wausau can help you find yours. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "If your fastball tops out at fifty, like mine did, maybe technology, health care, or the trades are more your speed. Northcentral Technical College in Wah-saw can get you there. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "When the scouts don't call, you can still pick up the phone yourself. Northcentral Technical College in Wah-saw has a spot for you. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "I never made it out of the minors, but you don't have to wait on a call-up. Northcentral Technical College in Wah-saw is ready when you are. Look up Northcentral Technical College at N, T, C, dot, E, D, U.",
+    "Central Wisconsin builds its future at Northcentral Technical College in Wah-saw. Good people, great programs. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "Folks, a career beats backup catcher every time, trust me on that one. Northcentral Technical College in Wah-saw can help you find yours. Northcentral Technical College, N, T, C, dot, E, D, U.",
 ]
 FACT_INTROS = [""]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
