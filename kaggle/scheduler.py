@@ -6,7 +6,7 @@
    so they play from GitHub Pages.
 
 Needs a KAGGLE_API_TOKEN repository secret (Kaggle > Settings > API Tokens)."""
-import json, os, shutil, subprocess, sys, time, urllib.request
+import hashlib, json, os, shutil, subprocess, sys, time, urllib.request
 from datetime import datetime
 
 KERNEL = "joshstutting/bobs-booth-studio"
@@ -37,6 +37,126 @@ def games():
             out.append({"pk": g["gamePk"], "num": g.get("seriesGameNumber"), "state": g["status"]["abstractGameState"],
                         "first": datetime.fromisoformat(g["gameDate"].replace("Z", "+00:00")).timestamp()})
     return sorted(out, key=lambda x: x["num"] or 0)
+
+
+def getj(url):
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.load(r)
+
+
+def digest(pk):
+    """Everything true about one finished game that a recap could use, straight from MLB's feed."""
+    g = getj(f"https://statsapi.mlb.com/api/v1.1/game/{pk}/feed/live")
+    gd, ld = g["gameData"], g["liveData"]
+    ls, box = ld["linescore"], ld["boxscore"]
+    out = {"pk": pk, "date": gd["datetime"].get("officialDate"), "venue": gd.get("venue", {}).get("name"),
+           "away": gd["teams"]["away"]["name"], "home": gd["teams"]["home"]["name"],
+           "final": {s: {k: ls["teams"][s].get(k) for k in ("runs", "hits", "errors", "leftOnBase")} for s in ("away", "home")},
+           "innings": [{"n": i["num"], "away": i.get("away", {}).get("runs"), "home": i.get("home", {}).get("runs")} for i in ls.get("innings", [])],
+           "decisions": {k: v.get("fullName") for k, v in ld.get("decisions", {}).items()},
+           "scoring": [], "homers": [], "batters": {}, "pitchers": {}, "last_play": ""}
+    plays = ld["plays"]["allPlays"]
+    for i in ld["plays"].get("scoringPlays", []):
+        p = plays[i]
+        out["scoring"].append({"inning": f"{p['about']['halfInning']} {p['about']['inning']}", "desc": p["result"].get("description"),
+                               "score": f"{p['result'].get('awayScore')}-{p['result'].get('homeScore')}", "rbi": p["result"].get("rbi")})
+    for p in plays:
+        if p["result"].get("eventType") == "home_run":
+            hd = next((e.get("hitData") for e in reversed(p.get("playEvents", [])) if e.get("hitData")), {}) or {}
+            out["homers"].append({"inning": f"{p['about']['halfInning']} {p['about']['inning']}", "batter": p["matchup"]["batter"]["fullName"],
+                                  "pitcher": p["matchup"]["pitcher"]["fullName"], "rbi": p["result"].get("rbi"),
+                                  "ev": hd.get("launchSpeed"), "dist": hd.get("totalDistance")})
+    if plays:
+        out["last_play"] = plays[-1]["result"].get("description", "")
+    for s in ("away", "home"):
+        team = box["teams"][s]
+        bats, arms = [], []
+        for pid in team.get("batters", []):
+            pl = team["players"].get(f"ID{pid}", {})
+            b = pl.get("stats", {}).get("batting", {})
+            if b and (b.get("atBats") or b.get("baseOnBalls")):
+                bats.append({"name": pl["person"]["fullName"], **{k: b.get(k, 0) for k in ("atBats", "hits", "doubles", "triples", "homeRuns", "rbi", "runs", "baseOnBalls", "strikeOuts", "stolenBases")}})
+        for pid in team.get("pitchers", []):
+            pl = team["players"].get(f"ID{pid}", {})
+            b = pl.get("stats", {}).get("pitching", {})
+            arms.append({"name": pl["person"]["fullName"], **{k: b.get(k) for k in ("inningsPitched", "hits", "runs", "earnedRuns", "baseOnBalls", "strikeOuts", "pitchesThrown", "homeRuns")}})
+        out["batters"][s], out["pitchers"][s] = bats, arms
+    return out
+
+
+def make_digests():
+    """extras/digests.json: the true facts of every finished game, for the recaps."""
+    path = os.path.join(ROOT, "extras", "digests.json")
+    if os.path.exists(path):
+        return False
+    done = [g for g in games() if g["state"] == "Final"]
+    if not done:
+        return False
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    data = {str(g["num"]): digest(g["pk"]) for g in done}
+    json.dump(data, open(path, "w"), indent=1)
+    log("saved game digests for", ", ".join(data))
+    return True
+
+
+def scripts_hash():
+    p = os.path.join(ROOT, "extras", "scripts.json")
+    return hashlib.sha1(open(p, "rb").read()).hexdigest()[:12] if os.path.exists(p) else ""
+
+
+def jload(p, default=None):
+    try:
+        return json.load(open(p))
+    except Exception:
+        return default
+
+
+def collect_extras(h):
+    """Copy voiced clips from the studio's latest run into extras/, if they were made from today's scripts."""
+    tmp = os.path.join(ROOT, ".kaggle-extras")
+    shutil.rmtree(tmp, ignore_errors=True)
+    code, out = kaggle("kernels", "output", KERNEL, "-p", tmp)
+    found = None
+    for root, _, files in os.walk(tmp):
+        if "extras.json" in files and (jload(os.path.join(root, "extras.json"), {}) or {}).get("scripts") == h:
+            found = root
+    if not found:
+        shutil.rmtree(tmp, ignore_errors=True)
+        log("no finished clips for the current scripts in the latest run")
+        return False
+    dst = os.path.join(ROOT, "extras")
+    for f in os.listdir(found):
+        if f.endswith(".mp3") or f == "extras.json":
+            shutil.copy2(os.path.join(found, f), os.path.join(dst, f))
+    shutil.rmtree(tmp, ignore_errors=True)
+    log("added the clips:", ", ".join(sorted(x for x in os.listdir(dst) if x.endswith(".mp3"))))
+    return True
+
+
+def extras(st, force=False):
+    """Voice extras/scripts.json once: start a run for new scripts, collect the clips when it's done. Returns True if files changed."""
+    h = scripts_hash()
+    if not h:
+        return False
+    made = (jload(os.path.join(ROOT, "extras", "extras.json"), {}) or {}).get("scripts")
+    if made == h:
+        return False
+    tried_p = os.path.join(ROOT, "extras", "started.json")
+    tried = jload(tried_p, {}) or {}
+    if st in ("running", "queued"):
+        log("studio is busy; clips wait")
+        return False
+    if tried.get("scripts") == h and not force:
+        if collect_extras(h):
+            return "collected"
+        if time.time() - tried.get("t", 0) < 3 * 3600 and st not in ("error", "cancel", "complete"):
+            return False
+        log("the clip run for these scripts ended without clips; run 'extras' by hand to try again")
+        return False
+    if start("extras"):
+        json.dump({"scripts": h, "t": time.time()}, open(tried_p, "w"))
+        return "started"
+    return False
 
 
 def kaggle(*args, check=True):
@@ -92,6 +212,10 @@ def start(mode="live", games=""):
     if games:
         at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
         src.insert(at, f"os.environ.setdefault(\"BOB_RENDER\", {json.dumps(games)})\n")
+    if mode == "extras":      # the scripts ride inside the run, so it voices exactly what's in the repo now
+        at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
+        src.insert(at, f"os.environ.setdefault(\"BOB_SCRIPTS\", {json.dumps(open(os.path.join(ROOT, 'extras', 'scripts.json')).read())})\n")
+        src.insert(at, f"os.environ.setdefault(\"BOB_SCRIPTS_HASH\", {json.dumps(scripts_hash())})\n")
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if key:
         at = next(i for i, l in enumerate(src) if l.startswith("import os")) + 1
@@ -186,6 +310,21 @@ def main():
     st = status()
     log("studio status:", st)
     running = st in ("running", "queued")
+    changed = False
+    if ACTION in ("auto", "extras"):
+        try:
+            changed = make_digests()
+        except Exception as e:
+            log("digest error:", e)
+        soon = any(g["state"] != "Final" and g["first"] - now < 4 * 3600 for g in gs)
+        if not soon:
+            did = extras(st, force=ACTION == "extras")
+            changed = changed or bool(did)
+            running = running or did == "started"
+        if ACTION == "extras":
+            with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
+                f.write(f"added={'extras' if changed else ''}\n")
+            return
     if ACTION in ("auto", "start"):
         target = next((g for g in gs if g["state"] != "Final" and g["first"] - START_EARLY <= now <= g["first"] + 5 * 3600), None)
         if target and not running and not have_replay(target["num"]):
@@ -201,8 +340,8 @@ def main():
     if ACTION in ("test", "render") and not running:
         start(ACTION, GAMES)
         return
+    added = []
     if ACTION in ("auto", "collect") and not running:
-        added = []
         missing = [g for g in gs if g["state"] == "Final" and not have_replay(g["num"])]
         stale = [g["num"] for g in gs if g["state"] == "Final" and g["num"] in RERENDER and replay_made(g["num"]) < RENDER_EPOCH]
         if missing or stale or ACTION == "collect":
@@ -212,8 +351,8 @@ def main():
         if ACTION == "auto" and AUTO_RENDER and stale and not soon and not (missing and not added) and not COLLECT_FAILED:
             log("re-rendering with the current rules:", stale)
             start("render", ",".join(map(str, stale)))
-        with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
-            f.write(f"added={' '.join(map(str, added))}\n")
+    with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
+        f.write(f"added={' '.join(map(str, added)) or ('extras' if changed else '')}\n")
 
 
 if __name__ == "__main__":
