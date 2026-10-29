@@ -1,0 +1,63 @@
+{
+ "scripts": "fd1de1518121",
+ "made": 1793284247,
+ "clips": [
+  {
+   "id": "champions",
+   "title": "Bob's Last Call",
+   "blurb": "Bob got a pass from upstairs for the whole World Series. Here he calls the final out of the Brewers' first championship, and says goodbye.",
+   "group": "feature",
+   "file": "champions.mp3",
+   "dur": 275.7
+  },
+  {
+   "id": "series",
+   "title": "The Series in Two Minutes",
+   "blurb": "Five games, twenty-five runs and the first championship in Brewers history, the way Bob remembers it.",
+   "group": "series",
+   "file": "series.mp3",
+   "dur": 113.5
+  },
+  {
+   "id": "game-1",
+   "title": "Game 1 Recap",
+   "blurb": "Yelich triples in the first, and Megill strikes out the last man with the tying run on third.",
+   "group": "game",
+   "file": "game-1.mp3",
+   "dur": 60.0
+  },
+  {
+   "id": "game-2",
+   "title": "Game 2 Recap",
+   "blurb": "The Rays score four in the first. The Brewers shrug, and win anyway.",
+   "group": "game",
+   "file": "game-2.mp3",
+   "dur": 57.3
+  },
+  {
+   "id": "game-3",
+   "title": "Game 3 Recap",
+   "blurb": "An eight-run fifth inning, sixteen hits, and one lonely Rays hit off Robert Gasser.",
+   "group": "game",
+   "file": "game-3.mp3",
+   "dur": 55.4
+  },
+  {
+   "id": "game-4",
+   "title": "Game 4 Recap",
+   "blurb": "Twelve innings, a Cooper Pratt homer in the twelfth, and a Rays walk-off.",
+   "group": "game",
+   "file": "game-4.mp3",
+   "dur": 51.0
+  },
+  {
+   "id": "game-5",
+   "title": "Game 5 Recap",
+   "blurb": "Misiorowski deals, Megill gets the last six outs, and Turang to Bauers makes history.",
+   "group": "game",
+   "file": "game-5.mp3",
+   "dur": 59.7
+  }
+ ],
+ "complete": true
+}
