@@ -1,0 +1,295 @@
+{
+ "clips": [
+  {
+   "id": "champions",
+   "group": "feature",
+   "title": "Bob's Last Call",
+   "blurb": "Bob gets a one-night pass to call the final out of the Brewers' first World Series championship, and to say goodbye.",
+   "parts": [
+    {
+     "text": "Tonight's presentation was brought to you by the Wizard, Josh Stutting. That's stutting dot josh at gmail dot com.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Once more, nice and slow, for the folks writing on a napkin. s, t, u, t, t, i, n, g, dot, j, o, s, h, at gmail dot com.",
+     "hot": false,
+     "pause": 0.8
+    },
+    {
+     "text": "Now, I played with a lot of utility men in my day, but Josh is something else. He teaches. He trains. He guides. And he did all of the technology wizardry it took to put an old radio man back behind this microphone. Folks, they don't print a baseball card for a player like that.",
+     "hot": false,
+     "pause": 0.8
+    },
+    {
+     "text": "And speaking of teaching, if you're looking for a fantastic education, my friends at Northcentral Technical College up in Wausau are the real deal. They train the people who make a ballgame happen. Chefs for the brats, video crews for the broadcast, and nurses and paramedics for when somebody pulls a hamstring sprinting to the concession stand.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "And if you liked seeing a little magic tonight, an old ballplayer brought back for one more call, Northcentral Technical College is now enrolling students in its brand new Artificial Intelligence Developer degree. You learn to build the real thing. Artificial intelligence apps, language models, smart agents, even robotics. That's N, T, C, dot, E, D, U.",
+     "hot": false,
+     "pause": 1.2
+    },
+    {
+     "text": "All right. That's the business. Hello again, everybody, Bob here, and please don't ask me how. Now let's talk about the best night of my life, and technically, I'm not even supposed to be here.",
+     "hot": false,
+     "pause": 1.0
+    },
+    {
+     "text": "Tropicana Field, Wednesday night. Bottom of the ninth, two outs, Brewers up four to one. Trevor Megill on the mound, Richie Palacios at the plate. Here's the pitch. | Ground ball to second! Turang has it, throws to Bauers, and the Brewers win the World Series!",
+     "hot": true,
+     "pause": 0.3
+    },
+    {
+     "text": "The Milwaukee Brewers are champions of the world! Oh my goodness, they did it! They finally did it! Pile on, boys, pile on! Milwaukee, this one is yours!",
+     "hot": "all",
+     "pause": 1.4
+    },
+    {
+     "text": "Four games to one, folks. And the first championship this ball club has ever won.",
+     "hot": false,
+     "pause": 1.2
+    },
+    {
+     "text": "Now, you have to understand, they don't usually let fellas out of where I've been. I had to fill out a form. Then I had to fill out another form. The man at the front desk asked me what was so important, and I said, the Brewers are about to win the World Series. And he said, well, why didn't you say so, and he held the gate open himself.",
+     "hot": false,
+     "pause": 0.8
+    },
+    {
+     "text": "So here I am, and I'll tell you, I am tickled pink.",
+     "hot": false,
+     "pause": 1.0
+    },
+    {
+     "text": "I keep thinking about all the nights that led to this one. County Stadium in April, the wind coming off the lake, and folks in snowmobile suits cheering a two run lead in the fourth. Bernie Brewer sliding into that big mug. And the tailgates. The smoke from a thousand grills rolling across the parking lot, so thick you could find your seat by smell.",
+     "hot": false,
+     "pause": 0.9
+    },
+    {
+     "text": "Nineteen eighty-two. Harvey's Wallbangers. Robin Yount and Paul Molitor and Gorman Thomas, and that Series against St. Louis that went seven games and broke every heart in Wisconsin. Two thousand eight, when C C Sabathia carried this club into October on that big left arm. Twenty eleven. Twenty eighteen. So close you could taste it. And every one of those Octobers ended with somebody saying, maybe next year.",
+     "hot": false,
+     "pause": 1.0
+    },
+    {
+     "text": "Well, Milwaukee. Next year is here.",
+     "hot": false,
+     "pause": 1.4
+    },
+    {
+     "text": "This one is for the kids who fell asleep with a radio under the pillow, and the grandparents who taught them to keep score. For the folks listening in the barn, at the cabin, on the boat, in the kitchen with the windows open on a summer night. For everybody who bought a ticket to a ninety loss season, just because it was baseball, and it was ours.",
+     "hot": false,
+     "pause": 0.9
+    },
+    {
+     "text": "And it's for the ones who aren't here to see it. You know who you are. And I'd guess a few of you are sitting right next to me. Pull up a chair, fellas. Best view in the house.",
+     "hot": false,
+     "pause": 1.2
+    },
+    {
+     "text": "Now, I have to be getting back. They gave me one game, and you do not want to be late up there. The ushers are very strict. But before I go, thank you. Thank you for letting an old radio man ride along one more time.",
+     "hot": false,
+     "pause": 0.9
+    },
+    {
+     "text": "Hug somebody tonight. Ring a bell. Honk the horn all the way home. The Milwaukee Brewers are champions of the world. This has been Bob. Good night, everybody, and congratulations, Milwaukee. You earned this one.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "series",
+   "group": "series",
+   "title": "The Series in Two Minutes",
+   "blurb": "Five games, twenty-five runs and the first championship in Brewers history, the way Bob remembers it.",
+   "parts": [
+    {
+     "text": "Well, folks, here's the whole World Series in about two minutes, which is roughly how long my big league career felt to the pitchers who faced me.",
+     "hot": false,
+     "pause": 0.8
+    },
+    {
+     "text": "Game One, in Milwaukee. Christian Yelich tripled in the first, Jacob Misiorowski pitched five strong innings, and Trevor Megill struck out the last man with the tying run ninety feet away. Brewers three, Rays two.",
+     "hot": false,
+     "pause": 0.7
+    },
+    {
+     "text": "Game Two. The Rays scored four in the first inning, and the Brewers just shrugged. Sal Frelick tied it with a home run, Cooper Pratt won it with a single, and the bullpen threw six scoreless innings. Brewers five, Rays four.",
+     "hot": false,
+     "pause": 0.7
+    },
+    {
+     "text": "Game Three, in Tampa Bay. An eight run fifth inning, sixteen hits, and Robert Gasser allowed one hit in six innings. Brewers ten, Rays one.",
+     "hot": false,
+     "pause": 0.7
+    },
+    {
+     "text": "Game Four. Twelve innings, a Cooper Pratt home run in the twelfth, and then a Rays walk-off. Rays four, Brewers three. Every great story needs a little suspense.",
+     "hot": false,
+     "pause": 0.7
+    },
+    {
+     "text": "Game Five. Misiorowski again, five and two-thirds scoreless innings. Megill got the last six outs, and it ended Turang to Bauers. Brewers four, Rays one.",
+     "hot": false,
+     "pause": 0.9
+    },
+    {
+     "text": "Four games to one, and the Brewers outscored Tampa Bay twenty-five to twelve. Jackson Chourio hit four fifty-eight, eleven hits in twenty-four at bats. Cooper Pratt drove in seven runs. Misiorowski won two games and allowed one earned run in ten and two-thirds innings. And Aaron Ashby pitched five and two-thirds innings out of the bullpen, gave up one hit, didn't allow a run, and struck out nine.",
+     "hot": false,
+     "pause": 0.9
+    },
+    {
+     "text": "The first championship in the history of the Milwaukee Brewers. From the Seattle Pilots in nineteen sixty-nine, to County Stadium, to Harvey's Wallbangers, to right now. It took a while, folks. It was worth every minute.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "game-1",
+   "group": "game",
+   "title": "Game 1 Recap",
+   "blurb": "Yelich triples in the first, and Megill strikes out the last man with the tying run on third.",
+   "parts": [
+    {
+     "text": "Game One, at American Family Field, and the Brewers wasted no time. Jackson Chourio got aboard in the first, and Christian Yelich drove him home with a line drive triple to center.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Then William Contreras singled, the ball took a little detour off the shortstop's glove, and Yelich trotted in. Two nothing, before the popcorn even cooled.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Jacob Misiorowski gave the Rays five innings and one run, and the bullpen took it from there. Aaron Ashby got five outs, three of them strikeouts, which is the kind of efficiency I never had, unless you count my own at bats.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Chourio singled home Cooper Pratt in the seventh, and it was three to one. Then the ninth got interesting. The Rays scored one, and they had the tying run at third and the winning run at second.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Trevor Megill struck out Jonny DeLuca swinging, and all of Wisconsin exhaled at once. Brewers three, Rays two. One down, three to go.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "game-2",
+   "group": "game",
+   "title": "Game 2 Recap",
+   "blurb": "The Rays score four in the first. The Brewers shrug, and win anyway.",
+   "parts": [
+    {
+     "text": "Game Two, and folks, the Rays came out swinging like somebody told them the buffet closes early. Four runs in the top of the first, capped by a two run homer from Liam Hicks that went four hundred and eleven feet. Four nothing, and I was already checking the bus schedule.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "But the Brewers got two right back in the bottom half, on singles from William Contreras and Garrett Mitchell. In the fourth, Cooper Pratt scored on an error, and it was four to three.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "In the sixth, Sal Frelick launched one four hundred and eight feet to center to tie it. And in the seventh, Pratt lined a single to right, Brice Turang came around, and Milwaukee had the lead for good.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Meanwhile, the Brewers bullpen threw six scoreless innings, and Aaron Ashby struck out Yandy Díaz to finish it. Brewers five, Rays four. Two games to none, and I put the bus schedule away.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "game-3",
+   "group": "game",
+   "title": "Game 3 Recap",
+   "blurb": "An eight-run fifth inning, sixteen hits, and one lonely Rays hit off Robert Gasser.",
+   "parts": [
+    {
+     "text": "Game Three, down in Tampa Bay, and this one was over faster than a sausage race with a head start. Christian Yelich and William Contreras each singled home a run in the third.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Then came the fifth inning, and folks, I'd tell you all about it, but I'm still catching my breath. Eight runs. Brice Turang singled in two, Garrett Mitchell singled in one, Cooper Pratt doubled in two, Sal Frelick doubled, David Hamilton singled, and Jackson Chourio doubled to top it off. Ten nothing.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "The Brewers had sixteen hits on the night, and Chourio had four of them. Meanwhile, Robert Gasser gave the Rays six innings and one hit. One hit. That was about my pace for a whole week, and I was trying.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "The Rays scored a run in the ninth, mostly so the scoreboard operator had something to do. Brewers ten, Rays one, and Milwaukee led the series three games to none.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "game-4",
+   "group": "game",
+   "title": "Game 4 Recap",
+   "blurb": "Twelve innings, a Cooper Pratt homer in the twelfth, and a Rays walk-off.",
+   "parts": [
+    {
+     "text": "Game Four. Twelve innings, folks, and I aged about a year. The Rays scored first, Cooper Pratt doubled in a run to tie it, the Rays went back ahead, and David Hamilton tied it again with a solo home run in the fifth.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Then both bullpens put on a clinic. Six straight scoreless innings. Aaron Ashby went two and a third without allowing a hit.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "In the top of the twelfth, Cooper Pratt hit one out to left center, his fourth hit of the night, and the Brewers led three to two. I had my champagne goggles on.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "But the Rays answered. Jonny DeLuca singled in the tying run, and Ben Williamson singled in the winner. Rays four, Brewers three, on a walk-off. Pratt went four for five and still lost, which is baseball for you. Milwaukee led three games to one, and the champagne went back on ice.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "game-5",
+   "group": "game",
+   "title": "Game 5 Recap",
+   "blurb": "Misiorowski deals, Megill gets the last six outs, and Turang to Bauers makes history.",
+   "parts": [
+    {
+     "text": "Game Five, with a championship one win away. Brice Turang got aboard in the second, and Cooper Pratt singled him home. Then Pratt got caught between bases, and the ball went through five different Rays before they tagged him. Most attention he got from Tampa all week.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Jacob Misiorowski was magnificent. Five and two-thirds innings, two hits, no runs. David Hamilton singled home Pratt in the fifth. In the sixth, William Contreras doubled home Christian Yelich, and Pratt added a sacrifice fly that the right fielder caught in foul ground. Four nothing.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "JoJo Romero and Abner Uribe got the Brewers through the seventh, and Trevor Megill took the last six outs. The Rays scratched out a run in the ninth.",
+     "hot": false,
+     "pause": 0.55
+    },
+    {
+     "text": "Then Richie Palacios hit a ground ball to Brice Turang, Turang threw to Jake Bauers, and the Milwaukee Brewers were champions of the world. Brewers four, Rays one. Folks, it finally happened.",
+     "hot": false,
+     "pause": 0.6
+    }
+   ]
+  }
+ ]
+}

@@ -247,14 +247,14 @@ SPONSORS = [
     "Every great team needs a utility man, and for your tech, that's Josh Stutting. Networks, computers, a little artificial intelligence wizardry. stutting dot josh at gmail dot com. " + SPELLED,
 ]
 NTC = [
-    "You know, folks, if you're not planning on getting drafted by the Brewers this year, take a look at Northcentral Technical College up in Wausau. Real programs, real careers. That's Northcentral Technical College, N T C dot edu.",
-    "Not everybody makes the big club, but everybody can build a great career, and Northcentral Technical College in Wausau is a fine place to start. Northcentral Technical College, N T C dot edu.",
-    "One of the best things going in central Wisconsin is Northcentral Technical College. Hands-on learning and instructors who really know their stuff. Northcentral Technical College, N T C dot edu.",
-    "If your fastball tops out at fifty, like mine did, maybe technology, health care, or the trades are more your speed. Northcentral Technical College in Wausau can get you there. That's Northcentral Technical College, N T C dot edu.",
-    "When the scouts don't call, you can still pick up the phone yourself. Northcentral Technical College in Wausau has a spot for you. Northcentral Technical College, N T C dot edu.",
-    "I never made it out of the minors, but you don't have to wait on a call-up. Northcentral Technical College in Wausau is ready when you are. Look up Northcentral Technical College at N T C dot edu.",
-    "Central Wisconsin builds its future at Northcentral Technical College in Wausau. Good people, great programs. Northcentral Technical College, N T C dot edu.",
-    "Folks, a career beats backup catcher every time, trust me on that one. Northcentral Technical College in Wausau can help you find yours. Northcentral Technical College, N T C dot edu.",
+    "You know, folks, if you're not planning on getting drafted by the Brewers this year, take a look at Northcentral Technical College up in Wausau. Real programs, real careers. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "Not everybody makes the big club, but everybody can build a great career, and Northcentral Technical College in Wausau is a fine place to start. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "One of the best things going in central Wisconsin is Northcentral Technical College. Hands-on learning and instructors who really know their stuff. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "If your fastball tops out at fifty, like mine did, maybe technology, health care, or the trades are more your speed. Northcentral Technical College in Wausau can get you there. That's Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "When the scouts don't call, you can still pick up the phone yourself. Northcentral Technical College in Wausau has a spot for you. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "I never made it out of the minors, but you don't have to wait on a call-up. Northcentral Technical College in Wausau is ready when you are. Look up Northcentral Technical College at N, T, C, dot, E, D, U.",
+    "Central Wisconsin builds its future at Northcentral Technical College in Wausau. Good people, great programs. Northcentral Technical College, N, T, C, dot, E, D, U.",
+    "Folks, a career beats backup catcher every time, trust me on that one. Northcentral Technical College in Wausau can help you find yours. Northcentral Technical College, N, T, C, dot, E, D, U.",
 ]
 FACT_INTROS = [""]
 STYLES = ["Open with the pitcher.", "Open with the batter.", "Open with the count or the situation.",
@@ -828,7 +828,7 @@ class Voice:
         With two GPUs, the sentences of a line are voiced on both at once."""
         import numpy as np
         parts = [spoken(t) for t in text.split("|") if t.strip()]
-        if hot and len(parts) == 1:
+        if hot and hot != "all" and len(parts) == 1:
             s = re.split(r"(?<=[.!?])\s+", parts[0])
             parts = [" ".join(s[:-1]), s[-1]] if len(s) > 1 else parts
         segs = []                                   # (sentence, voice)
@@ -1976,6 +1976,47 @@ def announce(url):
 
 
 # ================================================================ main
+def run_extras(voice):
+    """Voice the hand-written clips in BOB_SCRIPTS (extras/scripts.json) and save them to WORK/extras.
+    Each sentence is listened back with Whisper; a garbled take is redone (best of three)."""
+    import numpy as np, soundfile as sf
+    spec = json.loads(os.environ["BOB_SCRIPTS"])
+    out = os.path.join(WORK, "extras"); os.makedirs(out, exist_ok=True)
+    made = []
+    for clip in spec["clips"]:
+        t0 = time.time()
+        seq = [np.zeros(int(.4 * SR), np.float32)]
+        for part in clip["parts"]:
+            text, hot = part["text"], part.get("hot", False)
+            best = None
+            for attempt in range(3):
+                w = voice.say(text, hot=hot)
+                try:
+                    heard = words_of(voice.models[0].transcribe((w, SR)))
+                    score = difflib.SequenceMatcher(None, words_of(spoken(text.replace("|", " "))), heard).ratio()
+                except Exception as e:
+                    log("  listen-back skipped:", str(e)[:100]); score = 1.0
+                if best is None or score > best[0]:
+                    best = (score, w)
+                if score >= part.get("min", 0.86):
+                    break
+                log(f"  retake {attempt + 1} ({score:.2f}): {text[:60]!r}")
+            seq += [best[1], np.zeros(int(part.get("pause", 0.55) * SR), np.float32)]
+        w = np.concatenate(seq + [np.zeros(int(.6 * SR), np.float32)])
+        wav = os.path.join(out, clip["id"] + ".wav")
+        sf.write(wav, w, SR)
+        mp3 = os.path.join(out, clip["id"] + ".mp3")
+        subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", wav, "-af", "loudnorm=I=-16:TP=-1.5", "-ac", "1", "-b:a", "96k", mp3], check=True)
+        os.remove(wav)
+        made.append({k: clip.get(k) for k in ("id", "title", "blurb", "group")} | {"file": clip["id"] + ".mp3", "dur": round(len(w) / SR, 1)})
+        log(f"voiced {clip['id']}: {len(w) / SR:.0f}s in {time.time() - t0:.0f}s")
+        json.dump({"scripts": os.environ.get("BOB_SCRIPTS_HASH", ""), "made": int(time.time()), "clips": made, "complete": False},
+                  open(os.path.join(out, "extras.json"), "w"), indent=1)
+    json.dump({"scripts": os.environ.get("BOB_SCRIPTS_HASH", ""), "made": int(time.time()), "clips": made, "complete": True},
+              open(os.path.join(out, "extras.json"), "w"), indent=1)
+    log(f"extras done: {len(made)} clips")
+
+
 def pick_game():
     gs = series_games(force=True)
     now = time.time()
@@ -1998,6 +2039,13 @@ def main():
             log("No Brewers game within three hours, so the studio is closing." + (f" Next: Game {nxt['num']} at {nxt['date']}." if nxt else ""))
             return
         log(f"Tonight: Game {game['num']}, {game['away']} at {game['home']}, first pitch {game['date']}")
+    if MODE == "extras":            # voice the hand-written clips only: no writers, no server
+        global NUM_STEP
+        NUM_STEP = int(os.environ.get("BOB_STEPS", "32"))
+        voice = Voice()
+        voice.choose()
+        run_extras(voice)
+        return
     WRITE = Writer()
     CAST = Broadcast()
     serve()                         # live: the page finds the studio (and says it's warming up) while the voices load

@@ -215,6 +215,14 @@ table.sb{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fix
 .game .go{margin-top:auto;min-height:54px;border-radius:8px;border:none;cursor:pointer;font:700 1.05rem/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;background:var(--gold);color:#0b1d3a}
 .game .go:hover{background:#ffd35e}
 .game .go.alt{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
+/* ---------- the championship clips ---------- */
+.feature{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px 32px;padding:clamp(20px,3vw,32px);margin-bottom:14px;border-color:var(--gold);align-items:center}
+.feature h3{margin:0 0 6px;font:400 clamp(2.2rem,5vw,3.4rem)/1 var(--script);color:var(--gold)}
+.feature p{margin:0;color:var(--ink-2)}
+.feature .xplay{display:flex;flex-direction:column;gap:12px;min-width:0}
+.clip audio,.feature audio{width:100%;min-height:44px;color-scheme:dark}
+.clip .tools a.share{display:inline-flex;align-items:center;text-decoration:none}
+@media (max-width:760px){.feature{grid-template-columns:minmax(0,1fr)}}
 .logbox{padding:6px 24px}
 .share{border:1px solid var(--edge);background:transparent;color:var(--ink-2);border-radius:8px;padding:8px 12px;font:600 .85rem var(--body);cursor:pointer;min-height:40px}
 .share:hover{color:#fff;border-color:#5b86b0}
@@ -292,6 +300,7 @@ footer p{max-width:72em;margin:0 0 8px}
     </a>
     <nav class="nav" aria-label="Sections">
       <a href="#listen" aria-current="true">Listen</a>
+      <a href="#champions" id="navchamp" hidden>Champions</a>
       <a href="#series">Games</a>
       <a href="#calls">The Call</a>
       <a href="#brewers">History</a>
@@ -378,6 +387,17 @@ footer p{max-width:72em;margin:0 0 8px}
         </div>
       </aside>
 
+    </div>
+  </section>
+
+  <section class="sec g" id="champions" aria-labelledby="champ-h" hidden>
+    <div class="wrap">
+      <div class="sec-h">
+        <h2 id="champ-h"><span>World</span> Champions</h2>
+        <p>The Brewers won the World Series four games to one. Bob came back for one more call, and recapped every game in about a minute each.</p>
+      </div>
+      <div id="xfeature"></div>
+      <div class="games" id="xclips"></div>
     </div>
   </section>
 
@@ -539,6 +559,7 @@ function stopAll(){ players.forEach(p => { p.pause(); p.onended = null; p.ontime
 // ---------------- what's on screen
 function setPlaying(on){
   playing = on;
+  if (on) document.querySelectorAll("#champions audio").forEach(a => a.pause());
   $("playicon").innerHTML = on ? ICON_PAUSE : ICON_PLAY;
   $("play").setAttribute("aria-label", on ? "Pause" : "Play");
   $("meter").hidden = !on;
@@ -949,6 +970,56 @@ function renderGames(){
   const want = /^#game-(\d+)$/.exec(location.hash);
   if (want && !window.__jumped && $("game-" + want[1])){ window.__jumped = true; const c = $("game-" + want[1]); c.classList.add("tuned"); c.scrollIntoView({block: "center"}); }
 }
+
+// ---------------- the championship clips (extras/extras.json, voiced once after the series)
+const fmtDur = s => clock(s || 0);
+async function loadExtras(){
+  let j;
+  try{ j = await (await get("extras/extras.json")).json(); }catch(e){ return; }
+  const clips = (j && j.clips) || [];
+  if (!clips.length) return;
+  const audio = (c, label) => {
+    const a = document.createElement("audio");
+    a.controls = true; a.preload = "none"; a.src = "extras/" + c.file; a.setAttribute("aria-label", label);
+    a.addEventListener("play", () => {
+      document.querySelectorAll("#champions audio").forEach(o => { if (o !== a) o.pause(); });
+      if (playing) $("play").onclick();
+    });
+    return a;
+  };
+  const tools = c => {
+    const t = document.createElement("div"); t.className = "tools";
+    const sh = Object.assign(document.createElement("button"), {className: "share", type: "button", textContent: "Share"});
+    sh.onclick = () => shareLink(location.origin + location.pathname + "#clip-" + c.id, `Bob's Booth: ${c.title}`);
+    const dl = Object.assign(document.createElement("a"), {className: "share", href: "extras/" + c.file, textContent: "Download"});
+    dl.download = `Bobs-Booth-${c.title.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "")}.mp3`;
+    t.append(sh, dl); return t;
+  };
+  const feat = clips.find(c => c.group === "feature");
+  if (feat){
+    const box = document.createElement("article"); box.className = "panel feature clip"; box.id = "clip-" + feat.id;
+    box.innerHTML = '<div><h3></h3><p></p></div><div class="xplay"></div>';
+    box.querySelector("h3").textContent = feat.title;
+    box.querySelector("p").textContent = feat.blurb || "";
+    box.querySelector(".xplay").append(audio(feat, feat.title), tools(feat));
+    $("xfeature").replaceChildren(box);
+  }
+  const grid = $("xclips"); grid.replaceChildren();
+  clips.filter(c => c !== feat).forEach(c => {
+    const card = document.createElement("article"); card.className = "panel game clip"; card.id = "clip-" + c.id;
+    card.innerHTML = '<div class="row"><span class="n"></span><span class="d"></span></div><p class="s"></p>';
+    card.querySelector(".n").textContent = c.title;
+    card.querySelector(".d").textContent = fmtDur(c.dur);
+    card.querySelector(".s").textContent = c.blurb || "";
+    card.append(audio(c, c.title), tools(c));
+    grid.append(card);
+  });
+  $("champions").hidden = false; $("navchamp").hidden = false;
+  const want = /^#clip-([\w-]+)$/.exec(location.hash);
+  if (want && $("clip-" + want[1])){ const c = $("clip-" + want[1]); c.classList.add("tuned"); c.scrollIntoView({block: "center"}); }
+  else if (location.hash === "#champions") $("champions").scrollIntoView();
+}
+loadExtras();
 
 // ---------------- the main loop
 let lastGames = 0, lastFind = 0;
