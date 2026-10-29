@@ -1976,45 +1976,99 @@ def announce(url):
 
 
 # ================================================================ main
-def run_extras(voice):
-    """Voice the hand-written clips in BOB_SCRIPTS (extras/scripts.json) and save them to WORK/extras.
-    Each sentence is listened back with Whisper; a garbled take is redone (best of three)."""
+SAY_AS = [            # words the voice gets wrong, spelled the way Bob should say them
+    (r"\bWausau\b", "Wah-saw"), (r"\bNTC\b", "N, T, C"), (r"\.edu\b", " dot E, D, U"), (r"\bAI\b", "A, I"),
+    (r"\bstutting\.josh@gmail\.com\b", "stutting dot josh at gmail dot com"),
+]
+
+
+def say_as(text):
+    for a, b in SAY_AS:
+        text = re.sub(a, b, text, flags=re.I)
+    return text
+
+
+def voice_part(voice, text, hot=False, min_score=0.86, tries=3):
+    """One paragraph in Bob's voice. Each take is listened back with Whisper; a garbled take is redone (best of three)."""
+    text = say_as(text)
+    best = None
+    for attempt in range(tries):
+        w = voice.say(text, hot=hot)
+        try:
+            heard = words_of(voice.models[0].transcribe((w, SR)))
+            score = difflib.SequenceMatcher(None, words_of(spoken(text.replace("|", " "))), heard).ratio()
+        except Exception as e:
+            log("  listen-back skipped:", str(e)[:100]); score = 1.0
+        if best is None or score > best[0]:
+            best = (score, w)
+        if score >= min_score:
+            break
+        log(f"  retake {attempt + 1} ({score:.2f}): {text[:60]!r}")
+    return best[1]
+
+
+def render_clip(voice, parts, mp3):
+    """parts: [{"text", "hot", "pause"}]. Writes a loudness-matched MP3 and returns its length in seconds."""
     import numpy as np, soundfile as sf
+    seq = [np.zeros(int(.4 * SR), np.float32)]
+    for part in parts:
+        seq += [voice_part(voice, part["text"], part.get("hot", False), part.get("min", 0.86)),
+                np.zeros(int(part.get("pause", 0.55) * SR), np.float32)]
+    w = np.concatenate(seq + [np.zeros(int(.6 * SR), np.float32)])
+    wav = mp3[:-4] + ".wav"
+    sf.write(wav, w, SR)
+    subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", wav, "-af", "loudnorm=I=-16:TP=-1.5", "-ac", "1", "-b:a", "96k", mp3], check=True)
+    os.remove(wav)
+    return round(len(w) / SR, 1)
+
+
+def run_extras(voice):
+    """Voice the hand-written clips in BOB_SCRIPTS (extras/scripts.json) and save them to WORK/extras."""
     spec = json.loads(os.environ["BOB_SCRIPTS"])
     out = os.path.join(WORK, "extras"); os.makedirs(out, exist_ok=True)
     made = []
     for clip in spec["clips"]:
         t0 = time.time()
-        seq = [np.zeros(int(.4 * SR), np.float32)]
-        for part in clip["parts"]:
-            text, hot = part["text"], part.get("hot", False)
-            best = None
-            for attempt in range(3):
-                w = voice.say(text, hot=hot)
-                try:
-                    heard = words_of(voice.models[0].transcribe((w, SR)))
-                    score = difflib.SequenceMatcher(None, words_of(spoken(text.replace("|", " "))), heard).ratio()
-                except Exception as e:
-                    log("  listen-back skipped:", str(e)[:100]); score = 1.0
-                if best is None or score > best[0]:
-                    best = (score, w)
-                if score >= part.get("min", 0.86):
-                    break
-                log(f"  retake {attempt + 1} ({score:.2f}): {text[:60]!r}")
-            seq += [best[1], np.zeros(int(part.get("pause", 0.55) * SR), np.float32)]
-        w = np.concatenate(seq + [np.zeros(int(.6 * SR), np.float32)])
-        wav = os.path.join(out, clip["id"] + ".wav")
-        sf.write(wav, w, SR)
-        mp3 = os.path.join(out, clip["id"] + ".mp3")
-        subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", wav, "-af", "loudnorm=I=-16:TP=-1.5", "-ac", "1", "-b:a", "96k", mp3], check=True)
-        os.remove(wav)
-        made.append({k: clip.get(k) for k in ("id", "title", "blurb", "group")} | {"file": clip["id"] + ".mp3", "dur": round(len(w) / SR, 1)})
-        log(f"voiced {clip['id']}: {len(w) / SR:.0f}s in {time.time() - t0:.0f}s")
+        dur = render_clip(voice, clip["parts"], os.path.join(out, clip["id"] + ".mp3"))
+        made.append({k: clip.get(k) for k in ("id", "title", "blurb", "group")} | {"file": clip["id"] + ".mp3", "dur": dur})
+        log(f"voiced {clip['id']}: {dur:.0f}s in {time.time() - t0:.0f}s")
         json.dump({"scripts": os.environ.get("BOB_SCRIPTS_HASH", ""), "made": int(time.time()), "clips": made, "complete": False},
                   open(os.path.join(out, "extras.json"), "w"), indent=1)
     json.dump({"scripts": os.environ.get("BOB_SCRIPTS_HASH", ""), "made": int(time.time()), "clips": made, "complete": True},
               open(os.path.join(out, "extras.json"), "w"), indent=1)
     log(f"extras done: {len(made)} clips")
+
+
+# ================================================================ Bob on demand (the bobs-voice notebook)
+BOB_STYLE = """You are Bob, a beloved old Milwaukee Brewers radio announcer and former backup catcher: warm, quick, self-deprecating,
+a storyteller who makes everybody feel like company. You are writing words Bob will say out loud on the radio.
+Rewrite the message below so Bob says it in his own voice and style. Keep every fact, name, date, number, web address and email exactly;
+add no new facts, no made-up stats and no famous announcers' catchphrases. Write numbers as words. Keep it about the same length
+unless asked otherwise. Put a | right before any part Bob should say with big excitement (at most one | per paragraph).
+Separate paragraphs with a blank line. Reply with only Bob's words."""
+
+
+def bobify(text, writer):
+    try:
+        out = clean(writer(BOB_STYLE + "\n\nMessage:\n" + text)).strip()
+        return out or text
+    except Exception as e:
+        log("Bob's rewrite didn't work, so he'll read your words as written:", str(e)[:120])
+        return text
+
+
+def parse_parts(text):
+    """Paragraphs become parts. A paragraph starting with !! is all excited; text after a | is excited."""
+    parts = []
+    for para in re.split(r"\n\s*\n", text.strip()):
+        para = " ".join(para.split())
+        if not para:
+            continue
+        if para.startswith("!!"):
+            parts.append({"text": para[2:].strip(), "hot": "all", "pause": 0.8})
+        else:
+            parts.append({"text": para, "hot": "|" in para, "pause": 0.7})
+    return parts
 
 
 def pick_game():
