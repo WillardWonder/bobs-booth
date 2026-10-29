@@ -1170,7 +1170,7 @@ class Director:
         self.g, self.game, self.cast, self.voice, self.render = g, game, cast, voice, render
         self.box = Box(g); self.mem = []; self.people = {}; self.facts_left = list(FACTS)
         self.told = []; self.said = 0; self.tale_at = -99; self.last_hot = False
-        self.gap_fills = 0; self.fact_at = -99; self.half_ads = 0; self.ad_at = -99; self.ntc = []; self.recent_topics = []; self.sponsors = []; self.openings = []
+        self.gap_fills = 0; self.fact_at = -99; self.half_ads = 0; self.ad_at = -99; self.ntc = []; self.ad_turn = 0; self.recent_topics = []; self.sponsors = []; self.openings = []
         self.facts_quick = list(QUICK_FACTS); random.shuffle(self.facts_quick)
         self.history = list(QUICK_FACTS); random.shuffle(self.history)
         self.seen, self.done = set(), set()
@@ -1542,6 +1542,41 @@ class Director:
             out.append("Brewers history you may retell in your own words if it fits the moment: " + self.history.pop())
         return out
 
+    STORIES = ["the story of this series so far, game by game, the way you'd tell it on a front porch",
+               "one player's postseason so far, told as a story, using his real numbers and his earlier at-bats tonight",
+               "a piece of Brewers history from the facts, retold at length with color and why it still matters",
+               "tonight's matchup: the two starting pitchers, how their nights are going, and what each team needs",
+               "how tonight's runs were scored, told as a story, inning by inning",
+               "what it feels like in the booth on a World Series night, without inventing any facts about real people"]
+
+    def long_story(self, fj, allow):
+        """A long stretch (before first pitch, an inning break, a delay): one long, connected story instead of quick
+        topic changes. Written once, then voiced a couple of sentences at a time so the first part airs right away."""
+        if self.said - self.tale_at >= 25 and random.random() < 0.35:
+            topic = "a long, brand-new, harmless tall tale about your own forgettable playing days as a backup catcher, with a beginning, a middle and a punch line, then back to the game"
+        else:
+            options = [t for t in self.STORIES if t not in self.recent_topics] or self.STORIES
+            topic = random.choice(options)
+            self.recent_topics = (self.recent_topics + [topic])[-4:]
+        text = ask("This is a long quiet stretch on the radio. Tell one long, connected story about " + topic +
+                   ". Stay on that one story the whole way through, about a minute long, with a clear ending that comes back to the game. "
+                   "Only use names and numbers from the facts. Say it a new way; do not repeat anything you said tonight.",
+                   fj, self.mem, "", words=140, volume=False, allow=allow)
+        if not text:
+            return None
+        sents = re.split(r"(?<=[.!?])\s+", text.strip())
+        parts, cur = [], []
+        for x in sents:
+            cur.append(x)
+            if len(" ".join(cur).split()) >= 28:
+                parts.append(" ".join(cur)); cur = []
+        if cur:
+            parts.append(" ".join(cur))
+        out = None
+        for part in parts:
+            out = self.say(None, None, None, "story", 15, text=part, pause=0.3) or out
+        return out
+
     def filler(self, secs):
         """Fill a quiet stretch. Mostly fresh color about this game (the writer, checked like every line); now and then
         one true Brewers fact read word for word, each at most once a game. One fill between pitches; a few in a break.
@@ -1553,9 +1588,21 @@ class Director:
                                               b.half == "top" and b.score["home"] > b.score["away"]):
             return None
         in_break = self.hint in ("break", "change") or not b.started
-        if self.gap_fills >= (4 if in_break else 1):
+        if b.started and self.gap_fills >= (3 if in_break else 1):     # before first pitch: no limit, never run dry
             return None
         self.gap_fills += 1
+        if in_break and self.gap_fills % 2 == 0:                       # long stretches: commercials between the stories
+            self.ad_at = self.said
+            if self.ad_turn % 2 == 0:
+                if not self.sponsors:
+                    self.sponsors = list(SPONSORS); random.shuffle(self.sponsors)
+                ad = self.sponsors.pop()
+            else:
+                if not self.ntc:
+                    self.ntc = list(NTC); random.shuffle(self.ntc)
+                ad = self.ntc.pop()
+            self.ad_turn += 1
+            return self.say(None, None, None, "sponsor", 25, text=ad, pause=0.8)
         if b.started and self.half_ads < 1 and self.said - self.ad_at >= 20 and not in_break:
             self.half_ads += 1; self.ad_at = self.said
             if not self.sponsors:
@@ -1583,7 +1630,9 @@ class Director:
             allow["series"] = self.series_counts()[:2]
         except Exception:
             pass
-        w = self.words_for(min(secs, 10 if not in_break else 14))
+        if in_break:
+            return self.long_story(fj, allow)
+        w = self.words_for(min(secs, 10))
         text = ask("Fill a quiet moment on the radio with one short, fresh Bobism about " + topic +
                    ", or about any other real detail in the facts that is more interesting right now (an earlier at-bat, the batted ball, "
                    "the pitcher's velocity or pitch mix, the weather, the crowd, the umpire, a bit of Brewers history). "
