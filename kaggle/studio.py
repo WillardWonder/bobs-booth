@@ -1549,10 +1549,47 @@ class Director:
                "how tonight's runs were scored, told as a story, inning by inning",
                "what it feels like in the booth on a World Series night, without inventing any facts about real people"]
 
+    MEMORIES = [
+        "Harvey's Wallbangers, 1982. Harvey Kuenn took over as manager in early June with the team just under five hundred, and the Brewers took off. "
+        "They led the majors with two hundred sixteen home runs. On the last day of the season, in Baltimore, with the division on the line, Robin Yount hit two home runs off Jim Palmer and the Brewers won the American League East.",
+        "The 1982 American League Championship Series. The Brewers lost the first two games in Anaheim, came home to County Stadium, and won three straight, the first team ever to come back from two games down in a best of five playoff. "
+        "In the seventh inning of Game Five, Cecil Cooper lined a two-run single to left, and Milwaukee was going to the World Series.",
+        "The 1982 World Series against St. Louis, the Suds Series. In Game One, Paul Molitor got five hits, a World Series record, and the Brewers won ten to nothing. "
+        "Robin Yount had two four-hit games in that Series. Milwaukee led three games to two going back to St. Louis, but the Cardinals won the last two.",
+        "Robin Yount. Drafted third overall in nineteen seventy-three, he was the Brewers' Opening Day shortstop in nineteen seventy-four at eighteen years old. "
+        "He won the MVP as a shortstop in nineteen eighty-two and again as a center fielder in nineteen eighty-nine. "
+        "On September ninth, nineteen ninety-two, at County Stadium, he got his three thousandth hit, a single off Cleveland's Jose Mesa. He played all twenty seasons in Milwaukee.",
+        "Paul Molitor's hitting streak, nineteen eighty-seven. It reached thirty-nine games. On August twenty-sixth, in extra innings at County Stadium, with Molitor waiting on deck, "
+        "Rick Manning singled home the winning run. The crowd cheered the win and booed the hit, because it ended the streak.",
+        "Team Streak, nineteen eighty-seven. The Brewers won their first thirteen games, tying the record for the best start. Along the way, on April fifteenth in Baltimore, Juan Nieves threw the first no-hitter in Brewers history. "
+        "On Easter Sunday, down in the ninth, Rob Deer tied it with a home run and Dale Sveum won it with a two-run homer.",
+        "Hank Aaron in Milwaukee. He started his career with the Milwaukee Braves in nineteen fifty-four and won the World Series with them in nineteen fifty-seven at County Stadium. "
+        "After the Braves moved to Atlanta, he came home to finish his career with the Brewers in nineteen seventy-five and seventy-six. His seven hundred fifty-fifth and final home run came at County Stadium on July twentieth, nineteen seventy-six.",
+        "How the Brewers got here. The Braves left Milwaukee for Atlanta after the nineteen sixty-five season, and a Milwaukee car dealer named Bud Selig spent years trying to bring baseball back. "
+        "In the spring of nineteen seventy he bought the bankrupt Seattle Pilots, just days before the season. The new Milwaukee Brewers played their first home game on April seventh, nineteen seventy, and lost twelve to nothing to the Angels. Nobody cared. Baseball was back.",
+        "The 1957 World Series. The Milwaukee Braves beat the New York Yankees in seven games. Lew Burdette won three games in that Series, including a shutout in Game Seven. Milwaukee celebrated like it never had before.",
+        "Two thousand eight. In July the Brewers traded for CC Sabathia, and down the stretch he pitched again and again on short rest. On the final day of the season he beat the Cubs at Miller Park, "
+        "Ryan Braun hit a go-ahead home run in the eighth, and when the Mets lost, the Brewers had the wild card, their first trip to the postseason in twenty-six years.",
+        "Two thousand eleven. The Brewers won the National League Central. In the deciding Game Five of the division series against Arizona, Nyjer Morgan singled home the winning run in the tenth inning, and Milwaukee went to the National League Championship Series.",
+        "Two thousand eighteen. The Brewers and Cubs finished tied, so they played a tiebreaker at Wrigley Field, and the Brewers won it three to one to take the division. "
+        "Christian Yelich won the batting title and the MVP, and the Brewers came within one game of the World Series, losing Game Seven of the National League Championship Series to the Dodgers.",
+        "County Stadium. Tailgating in the parking lot before every game, the smell of brats on the grill, and Bernie Brewer up in his chalet, sliding down into a giant mug every time the Brewers hit a home run.",
+        "Prince Fielder, two thousand seven. At twenty-three years old he hit fifty home runs, the youngest player ever to reach fifty in a season.",
+    ]
+
     def long_story(self, fj, allow):
         """A long stretch (before first pitch, an inning break, a delay): one long, connected story instead of quick
         topic changes. Written once, then voiced a couple of sentences at a time so the first part airs right away."""
-        if self.said - self.tale_at >= 25 and random.random() < 0.35:
+        if not hasattr(self, "memories"):
+            self.memories = list(self.MEMORIES); random.shuffle(self.memories)
+        if self.memories and random.random() < 0.45:
+            memory = self.memories.pop()
+            fj = fj + "\nA true piece of Milwaukee baseball history to reminisce about: " + memory
+            allow = dict(allow or {}); allow["nums"] = set(allow.get("nums") or set()) | numbers_in(memory)
+            topic = ("the piece of Milwaukee baseball history in the facts. Reminisce about it warmly, like an old radio man remembering, with real nostalgia: "
+                     "the sights, the sounds and the feeling of the ballpark back then, and why it still matters tonight. You may say you remember watching or calling it, "
+                     "but keep every fact exactly as given and never invent quotes, conversations or private details about real people")
+        elif self.said - self.tale_at >= 25 and random.random() < 0.35:
             topic = "a long, brand-new, harmless tall tale about your own forgettable playing days as a backup catcher, with a beginning, a middle and a punch line, then back to the game"
         else:
             options = [t for t in self.STORIES if t not in self.recent_topics] or self.STORIES
